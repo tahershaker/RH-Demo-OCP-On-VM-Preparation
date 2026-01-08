@@ -16,7 +16,7 @@ The lab is prepared using a bastion host and is designed to support the deployme
 
 This section serves as the primary step-by-step guide for using this repository and preparing the demo lab environment. 
 
-| **Note:** This repository supports multiple deployment options and scenarios, with each subsection dedicated to a specific option or scenario.
+> **Note:** This repository supports multiple deployment options and scenarios, with each subsection dedicated to a specific option or scenario.
 
 ---
 
