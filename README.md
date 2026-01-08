@@ -4,6 +4,10 @@ A demo lab preparation repository provides step-by-step guides, scripts, and Ans
 
 ---
 
+If you are already familiar with this repository, you can proceed directly to the [Step-By-Step-Guide](#step-by-step-guide) section
+
+---
+
 ## Repo Description
 
 This repository is dedicated to demo environment preparation. Its primary purpose is to provide all required step-by-step guides, scripts, Ansible playbooks and roles, configuration files, and supporting tools needed to automate repetitive tasks involved in building a demo lab on top of VMware infrastructure.
