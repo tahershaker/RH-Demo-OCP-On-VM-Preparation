@@ -16,6 +16,35 @@ The lab is prepared using a bastion host and is designed to support the deployme
 
 ---
 
+## Repo Content
+
+This repository helps automate the preparation of an existing VMware-based lab environment for deploying Red Hat OpenShift cluster(s). The prepared lab can be used to support multiple OpenShift installation methods and cluster architectures, making it suitable for demo, enablement, and learning scenarios.
+
+To provide additional context, this repository assumes the existence of a pre-installed and pre-configured VMware lab environment with the following components:
+- A vSphere virtual datacenter with a cluster configured and sufficient ESXi capacity to meet the compute requirements of the OpenShift cluster(s).
+- One or more datastores configured and attached to the ESXi hosts.
+- An NSX segment that provides DHCP services, enables internal connectivity between virtual machines, and allows outbound internet access.
+- A bastion host that provides SSH access to the internal lab network and is connected to the NSX segment.
+- External DNS configured using one of the following approaches:
+- Two DNS records (one for the OpenShift API and one for applications), NATed to internal IP addresses within the lab.
+- A single wildcard DNS record pointing to the bastion host.
+
+The repository supports two main preparation options, each aligned with a specific OpenShift installation method:
+
+**Assisted Installer Option**
+
+- This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer via the Red Hat Hybrid Cloud Console. It supports deploying a single OpenShift cluster, either as a 3-node compact cluster or a 6-node standard cluster.
+- This option provides scripts that automate the installation, deployment, and configuration of required tools and resources to simplify the Assisted Installer workflow. The focus is on running automation from the bastion host, including installing required tools (such as govc) and automating repeatable tasks like virtual machine creation.
+- For more details, refer to the [corresponding section](/Option-1-Assisted-Installer/README.md) in this repository.
+
+**UBI Installer Option**
+
+- This option prepares the lab environment for deploying Red Hat OpenShift using the UBI-based installation method. It supports greater flexibility, including single or multiple OpenShift clusters, as well as compact or standard cluster architectures.
+- This option provides scripts to automate the installation, deployment, and configuration of required tools and infrastructure components. It focuses on using the bastion host as a central infrastructure node by installing required software packages (such as DNS and HAProxy), required tools (such as govc), and automating repeatable tasks like virtual machine creation.
+- For more details, refer to the [corresponding section](/Option-2-UBI-Installer/README.md) in this repository.
+
+---
+
 ## Step-By-Step Guide
 
 This section serves as the primary step-by-step guide for using this repository and preparing the demo lab environment. 
