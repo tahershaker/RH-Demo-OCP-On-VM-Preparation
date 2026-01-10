@@ -1,6 +1,6 @@
 # Red Hat OCP Demo Lab Preparation - VMware-Based Infrastructure
 
-A demo lab preparation repository provides step-by-step guides, scripts, and Ansible automation to prepare a repeatable demo lab for deploying and managing Red Hat OpenShift in demo and enablement scenarios.
+A repository providing automation tools (scripts, Ansible, and related assets) to prepare an existing VMware environment for deploying Red Hat OpenShift cluster(s) for demo and enablement use cases.
 
 ---
 
