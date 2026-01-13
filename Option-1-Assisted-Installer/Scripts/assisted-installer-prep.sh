@@ -290,7 +290,16 @@ while true; do
   VCENTER_URL=$(read_non_empty "       Enter vCenter URL (e.g. vc.example.com): ")
   VCENTER_USERNAME=$(read_non_empty "       Enter vCenter username: ")
   VCENTER_PASSWORD=$(read_non_empty_secret "       Enter vCenter password: ")
+  GOVC_VM_FOLDER_PATH=$(read_non_empty "       Enter VM folder full path (e.g. /SDDC-Datacenter/vm/Workloads/sandbox-r5vnx): ")
+  GOVC_DATASTORE_NAME=$(read_non_empty "       Enter datastore name only (e.g. workload_share_yBaQN): ")
+  GOVC_NETWORK_NAME=$(read_non_empty "       Enter network name only (e.g. segment-sandbox-r5vnx): ")
   echo ""
+
+  # Extract datacenter name, datastore + network paths from the VM folder path
+  DC_NAME="$(echo "$GOVC_VM_FOLDER_PATH" | awk -F'/' '{print $2}')"
+  GOVC_DATACENTER_PATH="/${DC_NAME}"
+  GOVC_DATASTORE_PATH="${GOVC_DATACENTER_PATH}/datastore/${GOVC_DATASTORE_NAME}"
+  GOVC_NETWORK_PATH="${GOVC_DATACENTER_PATH}/network/${GOVC_NETWORK_NAME}"
 
   echo -e "${BLUE}     - Red Hat OpenShift Cluster Info:${NC}"
   OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
@@ -325,6 +334,7 @@ done
 export GOVC_URL="$VCENTER_URL"
 export GOVC_USERNAME="$VCENTER_USERNAME"
 export GOVC_PASSWORD="$VCENTER_PASSWORD"
+export GOVC_DATACENTER="$DC_NAME"
 export GOVC_INSECURE=1
 
 #----------------------------------------------------------------------------------
@@ -900,116 +910,6 @@ echo ""
 #----------------------------------------------------------------------------------
 # Deploy Required VMs and perform required configuration
 #----------------------------------------------------------------------------------
-
-echo -e "${YELLOW} Retrive VMware Environment Info For GOVC...${NC}"
-echo -e "${YELLOW} -------------------------------------------${NC}"
-echo ""
-
-#----------------------------------------------------------------------
-
-echo -e "${CYAN} - Validating vCenter Connectivity${NC}"
-
-if ! govc about >/dev/null 2>&1; then
-  echo -e "${RED}   ERROR: Unable to connect to vCenter using the provided details.${NC}"
-  echo -e "${RED}   Please verify:${NC}"
-  echo -e "${RED}      - vCenter URL reachability${NC}"
-  echo -e "${RED}      - Username/password${NC}"
-  echo -e "${RED}      - Network/Firewall rules${NC}"
-  exit 1
-fi
-
-echo -e "${GREEN}   vCenter connectivity validated.${NC}"
-
-#----------------------------------------------------------------------
-
-echo -e "${CYAN} - Retrieving vCenter Datacenter...${NC}"
-
-DC_NAME="$(govc datacenter.info 2>/dev/null | awk -F': ' '/^[[:space:]]*Name:/ {print $2; exit}' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-
-if [[ -z "${DC_NAME}" ]]; then
-  echo -e "${RED}   ERROR: Failed to retrieve Datacenter name.${NC}"
-  echo -e "${RED}   Expected something like: /SDDC-Datacenter${NC}"
-  echo -e "${RED}   Please inspect error and try again.${NC}"
-  exit 1
-fi
-
-export GOVC_DATACENTER="$DC_NAME"
-
-# Full DC path (used in inventory paths)
-GOVC_DATACENTER_PATH="/${DC_NAME}"
-
-echo -e "${GREEN}   Datacenter detected:${NC} ${GOVC_DATACENTER}"
-echo -e "${GREEN}   Datacenter path:${NC}     ${GOVC_DATACENTER_PATH}"
-
-#----------------------------------------------------------------------
-
-echo -e "${CYAN} - Retrieving Target VM Folder (Workloads/sandbox...)${NC}"
-
-# Find folders under /<dc>/vm/Workloads, pick first "sandbox-*" folder
-GOVC_VM_FOLDER_PATH="$(govc find "${GOVC_DATACENTER_PATH}/vm/Workloads" -type f 2>/dev/null | grep -E '/sandbox[^/]*$' | head -n 1)"
-
-if [[ -z "${GOVC_VM_FOLDER_PATH}" ]]; then
-  echo -e "${RED}   ERROR: Workloads folder not found at ${GOVC_DATACENTER_PATH}/vm/Workloads${NC}"
-  echo -e "${RED}   Expected something like: /${GOVC_DATACENTER}/vm/Workloads/sandbox-xxxx${NC}"
-  echo -e "${RED}   Please inspect error and try again.${NC}"
-  exit 1
-fi
-
-# Folder name only (sometimes useful for display)
-GOVC_VM_FOLDER_NAME="${GOVC_VM_FOLDER_PATH##*/}"
-
-echo -e "${GREEN}   Target VM Folder selected:${NC} ${GOVC_VM_FOLDER_NAME}"
-echo -e "${GREEN}   Folder inventory path:${NC}     ${GOVC_VM_FOLDER_PATH}"
-
-#----------------------------------------------------------------------
-
-echo -e "${CYAN} - Selecting Datastore${NC}"
-
-# Full datastore inventory path + name
-GOVC_DATASTORE_PATH="$(govc ls "${GOVC_DATACENTER_PATH}/datastore" 2>/dev/null | head -n 1)"
-
-if [[ -z "${GOVC_DATASTORE_PATH}" ]]; then
-  echo -e "${RED}   ERROR: Datastore not found at ${GOVC_DATACENTER_PATH}/datastore${NC}"
-  echo -e "${RED}   Expected something like: /${GOVC_DATACENTER}/datastore/workload_share_xxxx${NC}"
-  echo -e "${RED}   Please inspect error and try again.${NC}"
-  exit 1
-fi
-
-GOVC_DATASTORE_NAME="${GOVC_DATASTORE_PATH##*/}"
-
-echo -e "${GREEN}   Datastore selected:${NC} ${GOVC_DATASTORE_NAME}"
-echo -e "${GREEN}   Datastore path:${NC}     ${GOVC_DATASTORE_PATH}"
-
-#----------------------------------------------------------------------
-
-echo -e "${CYAN} - Selecting Network${NC}"
-
-# Full network inventory path + name (prefer segment-*)
-GOVC_NETWORK_PATH="$(govc ls "${GOVC_DATACENTER_PATH}/network" 2>/dev/null | grep -E '/segment-' | head -n 1)"
-
-if [[ -z "${GOVC_NETWORK_PATH}" ]]; then
-  echo -e "${RED}   ERROR: Network starting with 'segment-' not found at ${GOVC_DATACENTER_PATH}/network${NC}"
-  echo -e "${RED}   Expected something like: /${GOVC_DATACENTER}/network/segment-sandbox-xxxx${NC}"
-  echo -e "${RED}   Please inspect error and try again.${NC}"
-  exit 1
-fi
-
-GOVC_NETWORK_NAME="${GOVC_NETWORK_PATH##*/}"
-
-echo -e "${GREEN}   Network selected:${NC} ${GOVC_NETWORK_NAME}"
-echo -e "${GREEN}   Network path:${NC}     ${GOVC_NETWORK_PATH}"
-echo ""
-
-#----------------------------------------------------------------------
-
-echo -e "${GREY}   VMware Environment Info Retrived. Moving to deploy..."
-
-#Print Separator
-echo ""
-echo " ================================================================================== "
-echo ""
-
-#===================================================================================
 
 echo -e "${YELLOW} Deploying Required Infrastrcutre For OCP...${NC}"
 echo -e "${YELLOW} -------------------------------------------${NC}"
