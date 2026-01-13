@@ -162,6 +162,7 @@ create_vm() {
   local ram_gb="$3"
   local disk_gb="$4"
   local vm_number="$5"
+  local node_type="$6"
 
   echo -e "${BRIGHT_BLUE}   Creating VM number ${vm_number}: ${vm_name}${NC}"
 
@@ -227,12 +228,14 @@ create_vm() {
   echo "   VM number ${vm_number} - ${vm_name} - configured successfully. Powering On..."
 
   # Power On VM - Sleep for 3 seconds to ensure all configurations are set
-  sleep 3
-  if ! govc vm.power -on "$VM_NAME" >/dev/null 2>&1; then
+  if [[ "$node_type" == "Master" ]]; then
+    sleep 3
+    if ! govc vm.power -on "$VM_NAME" >/dev/null 2>&1; then
       echo -e "${RED}   ERROR: Failed to power on ${VM_NAME}${NC}"
       echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
       exit 1
     fi
+  fi 
 
   echo -e "${GREEN}      VM number ${vm_number} - ${vm_name} - created & configured successfully. Proceeding...${NC}"
 }
@@ -1056,7 +1059,8 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
   echo ""
   for i in 1 2 3; do
     VM_NAME="demo-ocp-mgmt-master-0${i}"
-    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i"
+    VM_TYPE="Master"
+    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE"
     VM_LIST+=("$VM_NAME")
     echo ""
   done
@@ -1070,7 +1074,8 @@ else
     echo -e "${BRIGHT_BLUE}   Creating Master Nodes...${NC}"
     echo ""
     VM_NAME="demo-ocp-mgmt-master-0${i}"
-    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i"
+    VM_TYPE="Master"
+    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE"
     VM_LIST+=("$VM_NAME")
     echo ""
   done
@@ -1080,7 +1085,8 @@ else
     echo -e "${BRIGHT_BLUE}   Creating Worker Nodes...${NC}"
     echo ""
     VM_NAME="demo-ocp-mgmt-worker-0${i}"
-    create_vm "$VM_NAME" "$WORKER_CPU" "$WORKER_RAM_GB" "$WORKER_DISK_GB" "$i"
+    VM_TYPE="Worker"
+    create_vm "$VM_NAME" "$WORKER_CPU" "$WORKER_RAM_GB" "$WORKER_DISK_GB" "$i" "$VM_TYPE"
     VM_LIST+=("$VM_NAME")
     echo ""
   done
@@ -1093,4 +1099,47 @@ echo ""
 echo " ================================================================================== "
 echo ""
 
-#----------------------------------------------------------------------
+#===================================================================================
+
+echo -e "${YELLOW} Printing the list of deployed VM and thier info...${NC}"
+echo -e "${YELLOW} --------------------------------------------------${NC}"
+echo ""
+
+printf "%-32s %-20s %-20s\n" "VM Name" "MAC Address" "IP Address"
+printf "%-32s %-20s %-20s\n" "--------------------------------" "--------------------" "--------------------"
+
+for vm in "${VM_LIST[@]}"; do
+  # Get first NIC MAC
+  VM_MAC="$(govc device.info -vm "$vm" 2>/dev/null | awk '/MAC Address:/ {sub(/.*MAC Address:[[:space:]]*/, ""); print; exit}')"
+  VM_MAC="${VM_MAC:-N/A}"
+
+  # Get IP (single attempt after sleep)
+  VM_IP="$(govc vm.ip "$vm" 2>/dev/null | head -n 1)"
+  VM_IP="${VM_IP:-PENDING}"
+
+  printf "%-32s %-20s %-20s\n" "$vm" "$VM_MAC" "$VM_IP"
+done
+
+echo ""
+echo -e "${GREEN}   All VMs info are listed.${NC}"
+
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#-------------------------------------------------------------
+# Print Script Completed
+#-------------------------------------------------------------
+
+echo ""
+echo -e "${RED}"
+echo "  --------------------------------------------------------------------------------  "
+echo " | =====================         Script Completed           ===================== | "
+echo " | =====================             * Enjoy *              ===================== | "
+echo "  --------------------------------------------------------------------------------  "
+echo " ================================================================================== "
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
