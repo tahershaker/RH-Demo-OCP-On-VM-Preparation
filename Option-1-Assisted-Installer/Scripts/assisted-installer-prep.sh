@@ -3,6 +3,14 @@
 #===================================================================================
 
 #-------------------------------------------------------------
+# Add strict bash safety
+#-------------------------------------------------------------
+
+set -euo pipefail
+
+#===================================================================================
+
+#-------------------------------------------------------------
 # Script Description
 #-------------------------------------------------------------
 
@@ -32,6 +40,202 @@ BRIGHT_BLUE='\033[1;34m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'   # Reset / No Color
+
+#===================================================================================
+
+#-------------------------------------------------------------
+# Set trap to handel script interruption
+#-------------------------------------------------------------
+
+trap 'echo -e "\n${RED} ---- Script interrupted. Exiting...${NC}"; exit 1' INT TERM
+
+#===================================================================================
+
+#-------------------------------------------------------------
+# Reset variables (script + GOVC env) for safe re-runs
+#-------------------------------------------------------------
+
+# Unset GOVC environment variables (avoid stale sessions)
+unset GOVC_URL GOVC_USERNAME GOVC_PASSWORD GOVC_INSECURE GOVC_DATACENTER
+
+# Unset script variables (avoid stale values if sourced or reused)
+unset VCENTER_URL VCENTER_USERNAME VCENTER_PASSWORD OCP_RELEASE LAB_DOMAIN LAB_ID
+unset CLUSTER_MODE CLUSTER_TYPE MASTER_COUNT WORKER_COUNT
+unset MASTER_CPU MASTER_RAM_GB MASTER_DISK_GB WORKER_CPU WORKER_RAM_GB WORKER_DISK_GB
+unset ISO_WGET_CMD ISO_URL ISO_DIR ISO_FILENAME ISO_FULL_PATH
+unset TMP_DIR OC_TAR OC_URL
+unset DC_NAME GOVC_DATACENTER_PATH
+unset GOVC_VM_FOLDER_PATH GOVC_VM_FOLDER_NAME
+unset GOVC_DATASTORE_PATH GOVC_DATASTORE_NAME
+unset GOVC_NETWORK_PATH GOVC_NETWORK_NAME
+unset DATASTORE_ISO_PATH
+unset VM_LIST VM_NAME
+
+#===================================================================================
+
+#-------------------------------------------------------------
+# Create Functions To Be Used In Script
+#-------------------------------------------------------------
+
+# Function to Read Non-Empty Input (Rejects empty or whitespace-only)
+read_non_empty() {
+  local prompt="$1"
+  local value
+
+  while true; do
+    read -rp "$prompt" value
+    value="$(echo "$value" | xargs)"
+
+    if [[ -z "$value" ]]; then
+      echo -e "${RED}   Input cannot be empty. Please try again.${NC}" >&2
+      echo ""
+      continue
+    fi
+
+    echo "$value"
+    return 0
+  done
+}
+
+#------------------------------------------------------------------------------
+
+# Function to Read Non-Empty Secret Input (Hidden)
+read_non_empty_secret() {
+  local prompt="$1"
+  local value
+
+  while true; do
+    read -rsp "$prompt" value
+    echo ""
+
+    if [[ -z "$value" ]]; then
+      echo -e "${RED}   Input cannot be empty. Please try again.${NC}" >&2
+      echo ""
+      continue
+    fi
+
+    echo "$value"
+    return 0
+  done
+}
+
+#------------------------------------------------------------------------------
+
+# Function to Validate integer input (non-empty, numeric, within range)
+read_int_in_range() {
+  local prompt="$1" min="$2" max="$3" value
+
+  while true; do
+    read -rp "$prompt" value
+
+    if [[ -z "$value" ]] || ! [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" -lt "$min" ]] || [[ "$value" -gt "$max" ]]; then
+      echo -e "${RED}   Invalid input. Enter a numeric value between $min and $max.${NC}" >&2
+      continue
+    fi
+
+    echo "$value"
+    return 0
+  done
+}
+
+#------------------------------------------------------------------------------
+
+# Function to Confirm user input Y/N
+confirm_yn() {
+  local prompt="$1" ans
+  while true; do
+    read -rp "$prompt" ans
+    case "$ans" in
+      [Yy]) return 0 ;;
+      [Nn]) return 1 ;;
+      *) echo -e "${RED}   Invalid input. Please enter Y or N only.${NC}" >&2 ;;
+    esac
+  done
+}
+
+#------------------------------------------------------------------------------
+
+# Function to create the required VMs
+create_vm() {
+  local vm_name="$1"
+  local cpu="$2"
+  local ram_gb="$3"
+  local disk_gb="$4"
+  local vm_number="$5"
+
+  echo -e "${BRIGHT_BLUE}   Creating VM number ${vm_number}: ${vm_name}${NC}"
+
+  # Create VM (govc vm.create may power it on automatically)
+  if ! govc vm.create -folder "$GOVC_VM_FOLDER_PATH" -ds "$GOVC_DATASTORE_PATH" -net "$GOVC_NETWORK_PATH" \
+      -c "$cpu" -m "$((ram_gb * 1024))" -disk "${disk_gb}G" \
+      "$vm_name" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to create VM: ${vm_name}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
+
+  # Ensure powered off before configuration
+  govc vm.power -off -force "$vm_name" >/dev/null 2>&1 || true
+
+  # Print VM created
+  echo "   VM number ${vm_number} - ${vm_name} - created successfully. Adding required config..."
+
+  # sleep for 3 seconds to ensure VM is powered-off
+  sleep 3
+
+  # Enable disk UUID
+  echo "   Setting disk.EnableUUID to TRUE..."
+  if ! govc vm.change -vm "$vm_name" -e="disk.EnableUUID=TRUE" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to set disk.EnableUUID=TRUE on ${vm_name}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
+
+  # Add CDROM
+  echo "   Adding CD-ROM to VM..."
+  if ! govc device.cdrom.add -vm "$vm_name" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to add CDROM on ${vm_name}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
+
+  # Insert ISO
+  echo "   Inserting ISO to VM..."
+  if ! govc device.cdrom.insert -vm "$vm_name" -ds "$GOVC_DATASTORE_NAME" "$DATASTORE_ISO_PATH" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to insert ISO on ${vm_name}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
+
+  # Enable connect-at-boot (your confirmed working command)
+  echo "   Enabling CD-ROM to Connect-At-Boot on VM..."
+  local cdrom_dev
+  cdrom_dev="$(govc device.ls -vm "$vm_name" | awk '/^cdrom-/ {print $1; exit}')"
+  if [[ -z "$cdrom_dev" ]]; then
+    echo -e "${RED}   ERROR: Could not detect CDROM device for ${vm_name}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
+
+  if ! govc device.connect -vm "$vm_name" "$cdrom_dev" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to enable CDROM connect-at-boot on ${vm_name}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
+  
+  # Print VM configured
+  echo "   VM number ${vm_number} - ${vm_name} - configured successfully. Powering On..."
+
+  # Power On VM - Sleep for 3 seconds to ensure all configurations are set
+  sleep 3
+  if ! govc vm.power -on "$VM_NAME" >/dev/null 2>&1; then
+      echo -e "${RED}   ERROR: Failed to power on ${VM_NAME}${NC}"
+      echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+      exit 1
+    fi
+
+  echo -e "${GREEN}      VM number ${vm_number} - ${vm_name} - created & configured successfully. Proceeding...${NC}"
+}
 
 #===================================================================================
 
@@ -70,31 +274,31 @@ echo ""
 #===================================================================================
 
 #-------------------------------------------------------------
-# Collect and Confirm User Inputs For Lab Environement Info
+# Collect and Confirm User Inputs For Lab Environment Info
 #-------------------------------------------------------------
 
-echo -e "${YELLOW} Collect & Confirm Lab Environement Info${NC}"
+echo -e "${YELLOW} Collect & Confirm Lab Environment Info${NC}"
 echo -e "${YELLOW} ---------------------------------------${NC}"
 echo ""
 
 while true; do
-  echo -e "${YELLOW} - Please provide the required lab environement info below:${NC}"
+  echo -e "${YELLOW} - Please provide the required lab Environment info below:${NC}"
   echo -e "${BLUE}     - VMware vCenter Server Info:${NC}"
-  read -rp "       Enter vCenter URL (e.g. vc.example.com): " VCENTER_URL
-  read -rp "       Enter vCenter username: " VCENTER_USERNAME
-  read -rsp "       Enter vCenter password: " VCENTER_PASSWORD
+  VCENTER_URL=$(read_non_empty "       Enter vCenter URL (e.g. vc.example.com): ")
+  VCENTER_USERNAME=$(read_non_empty "       Enter vCenter username: ")
+  VCENTER_PASSWORD=$(read_non_empty_secret "       Enter vCenter password: ")
   echo ""
 
   echo -e "${BLUE}     - Red Hat OpenShift Cluster Info:${NC}"
-  read -rp "       Enter OpenShift release (e.g. 4.20.4): " OCP_RELEASE
+  OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
   echo ""
 
-  echo -e "${BLUE}     - Lab Environement Info:${NC}"
-  read -rp "       Enter lab base domain (e.g. dynamic.example.com): " LAB_DOMAIN
-  read -rp "       Enter lab ID (e.g. vrtzn): " LAB_ID
+  echo -e "${BLUE}     - Lab Environment Info:${NC}"
+  LAB_DOMAIN=$(read_non_empty "       Enter lab base domain (e.g. dynamic.example.com): ")
+  LAB_ID=$(read_non_empty "       Enter lab ID (e.g. vrtzn): ")
   echo ""
 
-  echo -e "${YELLOW} - Please review the provided information below & confirm (Yy/Nn):${NC}"
+  echo -e "${YELLOW} - Please review the provided information below & confirm (Y/N):${NC}"
   echo "   ----------------------------------------"
   echo "   vCenter URL       : $VCENTER_URL"
   echo "   vCenter Username  : $VCENTER_USERNAME"
@@ -105,35 +309,19 @@ while true; do
   echo "   ----------------------------------------"
   echo ""
 
-  # --- Confirmation loop (Y/N only) ---
-  while true; do
-    read -rp "   Are the above provided informations correct? (Y/N): " CONFIRM
-
-    case "$CONFIRM" in
-      [Yy])
-        echo -e "${GREEN}   Input confirmed. Proceeding...${NC}"
-        CONFIRMED=true
-        break
-        ;;
-      [Nn])
-        echo -e "${YELLOW}   Re-entering input details...${NC}"
-        echo ""
-        CONFIRMED=false
-        break
-        ;;
-      *)
-        echo -e "${RED}   Invalid input. Please enter Y or N only.${NC}"
-        ;;
-    esac
-  done
-
-  [[ "$CONFIRMED" == "true" ]] && break
+  if confirm_yn "   Are the above provided information correct? (Y/N): "; then
+    echo -e "${GREEN}   Input confirmed. Proceeding...${NC}"
+    break
+  else
+    echo -e "${YELLOW}   Re-entering input details...${NC}"
+    echo ""
+  fi
 done
 
 # Export govc environment variables
-export GOVC_URL=$VCENTER_URL
-export GOVC_USERNAME=$VCENTER_USERNAME
-export GOVC_PASSWORD=$VCENTER_PASSWORD
+export GOVC_URL="$VCENTER_URL"
+export GOVC_USERNAME="$VCENTER_USERNAME"
+export GOVC_PASSWORD="$VCENTER_PASSWORD"
 export GOVC_INSECURE=1
 
 #----------------------------------------------------------------------------------
@@ -213,14 +401,12 @@ while true; do
   echo "   ----------------------------------------"
   echo ""
 
-  while true; do
-    read -rp "   Is this correct? (Y/N): " CONFIRM
-    case "$CONFIRM" in
-      [Yy]) echo -e "${GREEN}   Cluster selection confirmed. Proceeding...${NC}"; break 2 ;;
-      [Nn]) echo -e "${YELLOW}   Re-entering cluster selection...${NC}"; break ;;
-      *)    echo -e "${RED}   Invalid input. Please enter Y or N only.${NC}" ;;
-    esac
-  done
+  if confirm_yn "   Is this correct? (Y/N): "; then
+    echo -e "${GREEN}   Cluster selection confirmed. Proceeding...${NC}"
+    break
+  else
+    echo -e "${YELLOW}   Re-entering cluster selection...${NC}"
+  fi
 done
 
 #----------------------------------------------------------------------------------
@@ -246,44 +432,12 @@ echo ""
 # Check VM Sizing Configuration (Defaults + Optional Custom + Confirmation)
 #----------------------------------------------------------------------------------
 
-# Function to Validate integer input (non-empty, numeric, within range)
-read_int_in_range() {
-  local prompt="$1" min="$2" max="$3" value
-
-  while true; do
-    read -rp "$prompt" value
-
-    if [[ -z "$value" ]] || ! [[ "$value" =~ ^[0-9]+$ ]] || [[ "$value" -lt "$min" ]] || [[ "$value" -gt "$max" ]]; then
-      echo -e "${RED}   Invalid input. Enter a numeric value between $min and $max.${NC}" >&2
-      continue
-    fi
-
-    echo "$value"
-    return 0
-  done
-}
-
-# Function to Confirm user input Y/N
-confirm_yn() {
-  local prompt="$1" ans
-  while true; do
-    read -rp "$prompt" ans
-    case "$ans" in
-      [Yy]) return 0 ;;
-      [Nn]) return 1 ;;
-      *) echo -e "${RED}   Invalid input. Please enter Y or N only.${NC}" >&2 ;;
-    esac
-  done
-}
-
-#------------------------------------------------------------------------
-
 echo -e "${YELLOW} Check The Required Node(s) HW Resources${NC}"
 echo -e "${YELLOW} ---------------------------------------${NC}"
 echo ""
 
 # ----------------------------
-# Check if COMPACT CLUSTER - then provide the defaults and ask for confirmation or gather user required inputs
+# Check if COMPACT CLUSTER - then provide the defaults and ask for confirmation or Retrieve user required inputs
 # ----------------------------
 if [[ "$CLUSTER_MODE" == "compact" ]]; then
   # Defaults
@@ -292,8 +446,6 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
   # Thresholds
   CPU_MIN=12; CPU_MAX=16; RAM_MIN=24; RAM_MAX=48; DISK_MIN=120; DISK_MAX=250
 
-
-  echo ""
   echo -e "${YELLOW} - Selected OpenShift Cluster Type is 3-node Compact Cluster.${NC}"
   echo -e "${YELLOW} - Below are the default node HW resources:${NC}"
   echo "   ---------------------------"
@@ -303,7 +455,7 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
   echo "   ---------------------------"
   echo ""
 
-  if confirm_yn "   Proceed with these default values (Yy/Nn)?"; then
+  if confirm_yn "   Proceed with these default values (Y/N)?"; then
     echo -e "${GREEN}   Using default VM sizing. Proceeding...${NC}"
   else
     while true; do
@@ -322,7 +474,7 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
       echo "   ------------------------------"
       echo ""
 
-      if confirm_yn "   Proceed with this VM sizing (Yy/Nn)?"; then
+      if confirm_yn "   Proceed with this VM sizing (Y/N)?"; then
         echo -e "${GREEN}   Custom VM sizing confirmed. Proceeding...${NC}"
         break
       fi
@@ -337,7 +489,7 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
   WORKER_DISK_GB=0
 
 # ----------------------------
-# Check if STANDARD CLUSTER - then provide the defaults and ask for confirmation or gather user required inputs
+# Check if STANDARD CLUSTER - then provide the defaults and ask for confirmation or Retrieve user required inputs
 # ----------------------------
 else
   # Defaults
@@ -350,7 +502,6 @@ else
   # Thresholds - workers
   W_CPU_MIN=8;  W_CPU_MAX=16; W_RAM_MIN=16; W_RAM_MAX=48; W_DISK_MIN=120; W_DISK_MAX=250
 
-  echo ""
   echo -e "${YELLOW} - Selected OpenShift Cluster Type is Standard Cluster (3 Master + $WORKER_COUNT Worker).${NC}"
   echo -e "${YELLOW} - Below are the default node HW resources:${NC}"
   echo "   -----------------------------------"
@@ -364,7 +515,7 @@ else
   echo ""
 
 
-  if confirm_yn "   Proceed with these default values (Yy/Nn)?"; then
+  if confirm_yn "   Proceed with these default values (Y/N)?"; then
     echo -e "${GREEN}   Using default VM sizing. Proceeding...${NC}"
   else
     # --- Custom sizing for masters (with confirmation) ---
@@ -384,7 +535,7 @@ else
       echo "   ----------------------------------------"
       echo ""
 
-      if confirm_yn "   Proceed with this master sizing (Yy/Nn)?"; then
+      if confirm_yn "   Proceed with this master sizing (Y/N)?"; then
         echo -e "${GREEN}   Master VM sizing confirmed. Proceeding...${NC}"
         break
       fi
@@ -411,7 +562,7 @@ else
       echo "   ----------------------------------------"
       echo ""
 
-      if confirm_yn "   Proceed with this worker sizing (Yy/Nn)?"; then
+      if confirm_yn "   Proceed with this worker sizing (Y/N)?"; then
         echo -e "${GREEN}   Worker VM sizing confirmed. Proceeding...${NC}"
         break
       fi
@@ -440,3 +591,506 @@ echo ""
 
 #===================================================================================
 
+#----------------------------------------------------------------------------------
+# Retrieve Assisted Installer ISO Download URL (Input + Validation)
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Retrieve Assisted Installer ISO Download Command:${NC}"
+echo -e "${YELLOW} -------------------------------------------------${NC}"
+echo ""
+echo -e "${YELLOW} Please paste the FULL wget command exactly as provided by the Assisted Installer.${NC}"
+echo -e "${GREY} Example:${NC}"
+echo -e "${GREY}   wget -O discovery_image_xxx.iso 'https://api.openshift.com/api/assisted-images/.../full.iso'${NC}"
+echo ""
+
+# Ensure wget exists
+if ! command -v wget >/dev/null 2>&1; then
+  echo -e "${RED}   wget is required but not installed. Please install it first.${NC}"
+  exit 1
+fi
+
+while true; do
+  read -rp " - Please enter full wget command: " ISO_WGET_CMD
+
+  # Remove whitespace-only
+  ISO_WGET_CMD="$(echo "$ISO_WGET_CMD" | xargs)" 
+
+  # Empty check
+  if [[ -z "$ISO_WGET_CMD" ]]; then
+    echo -e "${RED}   Input cannot be empty.${NC}"
+    continue
+  fi
+
+  # Must start with wget
+  if ! [[ "$ISO_WGET_CMD" =~ ^wget[[:space:]] ]]; then
+    echo -e "${RED}   Invalid command.${NC}"
+    echo -e "${RED}   Command must start with 'wget'.${NC}"
+    continue
+  fi
+
+  # Must contain -O <something>.iso
+  if ! [[ "$ISO_WGET_CMD" =~ [[:space:]]-O[[:space:]]+\"?[^\ \"\']+\.iso\"? ]]; then
+    echo -e "${RED}   Invalid wget format.${NC}"
+    echo -e "${RED}   Command must include '-O <filename>.iso'.${NC}"
+    continue
+  fi
+
+  # Extract ISO URL (must end with .iso)
+  ISO_URL="$(echo "$ISO_WGET_CMD" | grep -Eo 'https?://[^[:space:]'"'"']+\.iso' | head -n1)"
+
+  if [[ -z "$ISO_URL" ]]; then
+    echo -e "${RED}   Invalid or missing ISO URL.${NC}"
+    echo -e "${RED}   The command must include a valid http(s)://...iso URL.${NC}"
+    continue
+  fi
+
+  echo -e "   Validating ISO URL reachability..."
+
+  # Reachability check (NO download)
+  if ! wget --spider --server-response --max-redirect=5 --timeout=10 --tries=2 "$ISO_URL" >/dev/null 2>&1; then
+    echo -e "${RED}   ISO URL is not reachable or access is denied.${NC}"
+    echo -e "${RED}   Please re-enter a valid Assisted Installer wget command.${NC}"
+    continue
+  fi
+
+  echo -e "${GREEN}   ISO download command validated successfully. Proceeding...${NC}"
+  break
+done
+
+#----------------------------------------------------------------------------------
+# Section Environment Outputs
+#
+# This section collects and validates the Assisted Installer ISO download URL.
+# The URL is checked for correct format (http/https) and verified to be reachable.
+# The ISO is not downloaded at this stage; it will be retrieved later in the script.
+#
+# Variables set by this section:
+# - ISO_URL : Assisted Installer ISO download Command
+#----------------------------------------------------------------------------------
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Provide all retrieved info and confirm before proceeding
+#----------------------------------------------------------------------------------
+
+echo ""
+echo -e "${YELLOW} ====== Final Configuration Summary ======${NC}"
+echo ""
+
+echo -e "${BLUE} - Lab Environment:${NC}"
+echo "   Lab ID             : $LAB_ID"
+echo "   Lab Domain         : $LAB_DOMAIN"
+echo ""
+
+echo -e "${BLUE} - vCenter Configuration:${NC}"
+echo "   vCenter URL        : $GOVC_URL"
+echo "   vCenter Username   : $GOVC_USERNAME"
+echo "   vCenter Password   : ********"
+echo ""
+
+echo -e "${BLUE} - OpenShift Configuration:${NC}"
+echo "   OpenShift Release  : $OCP_RELEASE"
+echo "   ISO Download WGET  : $ISO_WGET_CMD"
+echo "   Cluster Mode       : $CLUSTER_MODE"
+echo "   Master Nodes       : $MASTER_COUNT"
+echo "   Worker Nodes       : $WORKER_COUNT"
+echo ""
+
+echo -e "${BLUE} - VM Sizing:${NC}"
+
+if [[ "$CLUSTER_MODE" == "compact" ]]; then
+  echo "   Compact Nodes (Masters act as Workers):"
+  echo "   vCPU             : $MASTER_CPU"
+  echo "   RAM              : ${MASTER_RAM_GB} GB"
+  echo "   Disk             : ${MASTER_DISK_GB} GB"
+else
+  echo "   Master Nodes:"
+  echo "   vCPU             : $MASTER_CPU"
+  echo "   RAM              : ${MASTER_RAM_GB} GB"
+  echo "   Disk             : ${MASTER_DISK_GB} GB"
+  echo ""
+  echo "   Worker Nodes:"
+  echo "   vCPU             : $WORKER_CPU"
+  echo "   RAM              : ${WORKER_RAM_GB} GB"
+  echo "   Disk             : ${WORKER_DISK_GB} GB"
+fi
+
+echo ""
+echo -e "${YELLOW}=======================================================================${NC}"
+echo ""
+
+if confirm_yn "   Proceed with the above configuration and start preparation? (Y/N): "; then
+  echo -e "${GREEN}   Configuration confirmed. Proceeding...${NC}"
+else
+  echo -e "${RED}   Configuration not confirmed.${NC}"
+  echo -e "${RED}   Exiting script. Please re-run to modify inputs.${NC}"
+  exit 1
+fi
+
+#----------------------------------------------------------------------------------
+# Full Input Summary and Final Confirmation
+#
+# This section presents a complete summary of all collected inputs and derived
+# configuration values. The user must confirm before the script proceeds with
+# any provisioning or automation actions.
+#
+# Variables reviewed in this section include:
+# - Lab environment details
+# - vCenter connection details
+# - OpenShift release and ISO URL
+# - Cluster topology and node counts
+# - VM sizing for master and worker nodes
+#----------------------------------------------------------------------------------
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#########################################################################
+####### Retriving Info Complated - Starting Script Activites ############
+#########################################################################
+
+echo -e "${GREEN}   Required Info Retrieved. Start Script Activities...${NC}"
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Download Assisted Installer ISO File
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Downloading Assisted Installer ISO${NC}"
+echo -e "${YELLOW} ----------------------------------${NC}"
+
+ISO_DIR="$HOME/assisted-installer-iso"
+
+# Create directory if it does not exist
+mkdir -p "$ISO_DIR"
+
+# Download ISO using the exact command provided by the user
+$ISO_WGET_CMD
+
+# Extract ISO filename from wget command
+ISO_FILENAME="$(echo "$ISO_WGET_CMD" | awk '{for (i=1;i<=NF;i++) if ($i=="-O") print $(i+1)}')"
+
+# Validate download
+if [[ ! -f "$ISO_FILENAME" ]]; then
+  echo -e "${RED} ERROR: ISO file was not downloaded: $ISO_FILENAME${NC}"
+  echo -e "${RED} Please check this issue and try again.${NC}"
+  exit 1
+fi
+
+# Move ISO to target directory
+mv -f "$ISO_FILENAME" "$ISO_DIR/"
+
+ISO_FULL_PATH="$ISO_DIR/$ISO_FILENAME"
+
+echo -e "${GREEN} ISO download completed successfully.${NC}"
+echo -e "${GREEN} ISO file path: $ISO_FULL_PATH${NC}"
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Check and Install govc
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Insallting GOVC CLI${NC}"
+echo -e "${YELLOW} -------------------${NC}"
+
+if command -v govc >/dev/null 2>&1; then
+  echo -e "${GREEN} GOVC is already installed. Skipping.${NC}"
+else
+  curl -sL -o - "https://github.com/vmware/govmomi/releases/latest/download/govc_$(uname -s)_$(uname -m).tar.gz" | sudo tar -C /usr/local/bin -xvzf - govc
+
+  echo -e "${GREEN} GOVC installed successfully.${NC}"
+fi
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Install OpenShift oc CLI
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Installing OpenShift oc CLI${NC}"
+echo -e "${YELLOW} ---------------------------${NC}"
+
+if command -v oc >/dev/null 2>&1; then
+  echo -e "${GREEN} oc CLI is already installed. Skipping.${NC}"
+else
+  TMP_DIR="$(mktemp -d)"
+  OC_TAR="openshift-client-linux.tar.gz"
+  OC_URL="https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OCP_RELEASE}/${OC_TAR}"
+
+  echo -e "${BLUE} Downloading oc CLI...${NC}"
+  wget -q -O "${TMP_DIR}/${OC_TAR}" "$OC_URL"
+
+  echo -e "${BLUE} Extracting oc and kubectl...${NC}"
+  tar -xzf "${TMP_DIR}/${OC_TAR}" -C "$TMP_DIR"
+
+  echo -e "${BLUE} Installing binaries to /usr/local/bin...${NC}"
+  sudo mv "${TMP_DIR}/oc" "${TMP_DIR}/kubectl" /usr/local/bin/
+  sudo chmod +x /usr/local/bin/oc /usr/local/bin/kubectl
+
+  rm -rf "$TMP_DIR"
+
+  echo -e "${GREEN} oc CLI installed successfully.${NC}"
+fi
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Install Helm CLI (Red Hat / OpenShift Mirror)
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Installing Helm CLI${NC}"
+echo -e "${YELLOW} --------------------${NC}"
+
+if command -v helm >/dev/null 2>&1; then
+  echo -e "${GREEN} Helm is already installed. Skipping.${NC}"
+else
+  echo -e "${BLUE} Downloading Helm binary from Red Hat mirror...${NC}"
+  if ! sudo curl -fsSL https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/bin/helm; then
+    echo -e "${RED} ERROR: Failed to download Helm binary.${NC}"
+    echo -e "${RED} Please check the issue and install Helm manually after script complete.${NC}"
+  fi
+
+  echo -e "${BLUE} Setting execute permission...${NC}"
+  sudo chmod +x /usr/local/bin/helm
+
+  echo -e "${GREEN} Helm installed successfully.${NC}"
+fi
+
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Deploy Required VMs and perform required configuration
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Retrive VMware Environment Info For GOVC...${NC}"
+echo -e "${YELLOW} -------------------------------------------${NC}"
+echo ""
+
+#----------------------------------------------------------------------
+
+echo -e "${CYAN} - Validating vCenter Connectivity${NC}"
+
+if ! govc about >/dev/null 2>&1; then
+  echo -e "${RED}   ERROR: Unable to connect to vCenter using the provided details.${NC}"
+  echo -e "${RED}   Please verify:${NC}"
+  echo -e "${RED}      - vCenter URL reachability${NC}"
+  echo -e "${RED}      - Username/password${NC}"
+  echo -e "${RED}      - Network/Firewall rules${NC}"
+  exit 1
+fi
+
+echo -e "${GREEN}   vCenter connectivity validated.${NC}"
+
+#----------------------------------------------------------------------
+
+echo -e "${CYAN} - Retrieving vCenter Datacenter...${NC}"
+
+DC_NAME="$(govc datacenter.info 2>/dev/null | awk -F': ' '/^[[:space:]]*Name:/ {print $2; exit}' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+if [[ -z "${DC_NAME}" ]]; then
+  echo -e "${RED}   ERROR: Failed to retrieve Datacenter name.${NC}"
+  echo -e "${RED}   Expected something like: /SDDC-Datacenter${NC}"
+  echo -e "${RED}   Please inspect error and try again.${NC}"
+  exit 1
+fi
+
+export GOVC_DATACENTER="$DC_NAME"
+
+# Full DC path (used in inventory paths)
+GOVC_DATACENTER_PATH="/${DC_NAME}"
+
+echo -e "${GREEN}   Datacenter detected:${NC} ${GOVC_DATACENTER}"
+echo -e "${GREEN}   Datacenter path:${NC}     ${GOVC_DATACENTER_PATH}"
+
+#----------------------------------------------------------------------
+
+echo -e "${CYAN} - Retrieving Target VM Folder (Workloads/sandbox...)${NC}"
+
+# Find folders under /<dc>/vm/Workloads, pick first "sandbox-*" folder
+GOVC_VM_FOLDER_PATH="$(govc find "${GOVC_DATACENTER_PATH}/vm/Workloads" -type f 2>/dev/null | grep -E '/sandbox[^/]*$' | head -n 1)"
+
+if [[ -z "${GOVC_VM_FOLDER_PATH}" ]]; then
+  echo -e "${RED}   ERROR: Workloads folder not found at ${GOVC_DATACENTER_PATH}/vm/Workloads${NC}"
+  echo -e "${RED}   Expected something like: /${GOVC_DATACENTER}/vm/Workloads/sandbox-xxxx${NC}"
+  echo -e "${RED}   Please inspect error and try again.${NC}"
+  exit 1
+fi
+
+# Folder name only (sometimes useful for display)
+GOVC_VM_FOLDER_NAME="${GOVC_VM_FOLDER_PATH##*/}"
+
+echo -e "${GREEN}   Target VM Folder selected:${NC} ${GOVC_VM_FOLDER_NAME}"
+echo -e "${GREEN}   Folder inventory path:${NC}     ${GOVC_VM_FOLDER_PATH}"
+
+#----------------------------------------------------------------------
+
+echo -e "${CYAN} - Selecting Datastore${NC}"
+
+# Full datastore inventory path + name
+GOVC_DATASTORE_PATH="$(govc ls "${GOVC_DATACENTER_PATH}/datastore" 2>/dev/null | head -n 1)"
+
+if [[ -z "${GOVC_DATASTORE_PATH}" ]]; then
+  echo -e "${RED}   ERROR: Datastore not found at ${GOVC_DATACENTER_PATH}/datastore${NC}"
+  echo -e "${RED}   Expected something like: /${GOVC_DATACENTER}/datastore/workload_share_xxxx${NC}"
+  echo -e "${RED}   Please inspect error and try again.${NC}"
+  exit 1
+fi
+
+GOVC_DATASTORE_NAME="${GOVC_DATASTORE_PATH##*/}"
+
+echo -e "${GREEN}   Datastore selected:${NC} ${GOVC_DATASTORE_NAME}"
+echo -e "${GREEN}   Datastore path:${NC}     ${GOVC_DATASTORE_PATH}"
+
+#----------------------------------------------------------------------
+
+echo -e "${CYAN} - Selecting Network${NC}"
+
+# Full network inventory path + name (prefer segment-*)
+GOVC_NETWORK_PATH="$(govc ls "${GOVC_DATACENTER_PATH}/network" 2>/dev/null | grep -E '/segment-' | head -n 1)"
+
+if [[ -z "${GOVC_NETWORK_PATH}" ]]; then
+  echo -e "${RED}   ERROR: Network starting with 'segment-' not found at ${GOVC_DATACENTER_PATH}/network${NC}"
+  echo -e "${RED}   Expected something like: /${GOVC_DATACENTER}/network/segment-sandbox-xxxx${NC}"
+  echo -e "${RED}   Please inspect error and try again.${NC}"
+  exit 1
+fi
+
+GOVC_NETWORK_NAME="${GOVC_NETWORK_PATH##*/}"
+
+echo -e "${GREEN}   Network selected:${NC} ${GOVC_NETWORK_NAME}"
+echo -e "${GREEN}   Network path:${NC}     ${GOVC_NETWORK_PATH}"
+echo ""
+
+#----------------------------------------------------------------------
+
+echo -e "${GREY}   VMware Environment Info Retrived. Moving to deploy..."
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+echo -e "${YELLOW} Deploying Required Infrastrcutre For OCP...${NC}"
+echo -e "${YELLOW} -------------------------------------------${NC}"
+echo ""
+
+#----------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------
+# Upload Assisted Installer ISO To vCenter Datastore
+# Target: <datastore>/ISO/<iso-file-name>
+#----------------------------------------------------------------------------------
+
+echo -e "${CYAN} - Uploading Assisted Installer ISO To Datastore${NC}"
+
+# Expected inputs already set earlier: - ISO_FULL_PATH - ISO_FILENAME - GOVC_DATASTORE_NAME
+
+# Upload to datastore under ISO/<filename> (govc will create the 'ISO' dir if needed)
+if ! govc datastore.upload -ds "$GOVC_DATASTORE_PATH" "$ISO_FULL_PATH" "DEMO-LAB-ISO/${ISO_FILENAME}" >/dev/null 2>&1; then
+  echo -e "${RED}   ERROR: Failed to upload ISO to datastore.${NC}"
+  echo -e "${RED}   Please verify datastore access/permissions and try again.${NC}"
+  exit 1
+fi
+
+DATASTORE_ISO_PATH="DEMO-LAB-ISO/${ISO_FILENAME}"
+
+echo -e "${GREEN}   ISO uploaded successfully.${NC}"
+echo -e "${GREEN}   Datastore ISO path: ${DATASTORE_ISO_PATH}${NC}"
+
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#----------------------------------------------------------------------
+
+#----------------------------------------------------------------------------------
+# Deploy VMs (compact vs standard) + attach ISO + enable UUID + connect-at-boot + power on
+#----------------------------------------------------------------------------------
+
+echo -e "${CYAN} - Deploying OpenShift Cluster VMs${NC}"
+echo ""
+
+VM_LIST=()   # store created VM names so we can list them all at the end
+
+if [[ "$CLUSTER_MODE" == "compact" ]]; then
+  echo -e "${BRIGHT_BLUE}   Cluster type: Compact (3 nodes)${NC}"
+  echo -e "${BRIGHT_BLUE}   Creating & Configuring VMs...${NC}"
+  echo ""
+  for i in 1 2 3; do
+    VM_NAME="demo-ocp-mgmt-master-0${i}"
+    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i"
+    VM_LIST+=("$VM_NAME")
+    echo ""
+  done
+else
+  echo -e "${BRIGHT_BLUE}   Cluster type: Standard (3 masters + ${WORKER_COUNT} workers)${NC}"
+  echo -e "${BRIGHT_BLUE}   Creating & Configuring VMs...${NC}"
+  echo ""
+
+  # Masters
+  for i in 1 2 3; do
+    echo -e "${BRIGHT_BLUE}   Creating Master Nodes...${NC}"
+    echo ""
+    VM_NAME="demo-ocp-mgmt-master-0${i}"
+    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i"
+    VM_LIST+=("$VM_NAME")
+    echo ""
+  done
+
+  # Workers
+  for i in $(seq 1 "$WORKER_COUNT"); do
+    echo -e "${BRIGHT_BLUE}   Creating Worker Nodes...${NC}"
+    echo ""
+    VM_NAME="demo-ocp-mgmt-worker-0${i}"
+    create_vm "$VM_NAME" "$WORKER_CPU" "$WORKER_RAM_GB" "$WORKER_DISK_GB" "$i"
+    VM_LIST+=("$VM_NAME")
+    echo ""
+  done
+fi
+
+echo ""
+echo -e "${GREEN}   All VMs created successfully.${NC}"
+
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#----------------------------------------------------------------------
