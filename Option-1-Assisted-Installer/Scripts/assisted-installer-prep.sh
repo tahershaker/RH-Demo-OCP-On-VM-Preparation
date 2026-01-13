@@ -672,7 +672,6 @@ echo ""
 # Provide all retrieved info and confirm before proceeding
 #----------------------------------------------------------------------------------
 
-echo ""
 echo -e "${YELLOW} ====== Final Configuration Summary ======${NC}"
 echo ""
 

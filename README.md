@@ -37,7 +37,7 @@ The repository supports two main preparation options, each aligned with a specif
 - This option provides scripts that automate the installation, deployment, and configuration of required tools and resources to simplify the Assisted Installer workflow. The focus is on running automation from the bastion host, including installing required tools (such as govc) and automating repeatable tasks like virtual machine creation.
 - For more details, refer to the [corresponding section](/Option-1-Assisted-Installer/README.md) in this repository.
 
-**UBI Installer Option**
+**IPI Installer Option**
 
 - This option prepares the lab environment for deploying Red Hat OpenShift using the UBI-based installation method. It supports greater flexibility, including single or multiple OpenShift clusters, as well as compact or standard cluster architectures.
 - This option provides scripts to automate the installation, deployment, and configuration of required tools and infrastructure components. It focuses on using the bastion host as a central infrastructure node by installing required software packages (such as DNS and HAProxy), required tools (such as govc), and automating repeatable tasks like virtual machine creation.
@@ -51,13 +51,44 @@ This section serves as the primary step-by-step guide for using this repository 
 
 > **Note:** This repository supports multiple deployment options and scenarios, with each subsection dedicated to a specific option or scenario.
 
+### Option 1 - Assisted Installer Option
+
+1- Prepare the required info for the script to run 
+
+The script will ask the user for serverl info to be able to perofrm the required action. These info will be provided to the script as user inputs and the script will ask the user for each info one-by-one. Prepare these info to be able to use the provided script. Required info provided below
+
+```bash
+- vCenter URL:
+- vCenter username:
+- vCenter password:
+- vSphere VM folder full path: 
+- vSphere datastore name:
+- vSphere network name:
+- Required OpenShift release: 
+- OpenShift Cluster Type: 
+-       1) 3-node compact cluster (masters also act as workers)
+-       2) Standard cluster (3 masters + x worker nodes)
+- Required Node(s) HW Resources: - Script will provide defaults, user can change if required
+- Assisted Installer ISO wget command:
+-       Example: wget -O discovery_image_xxx.iso 'https://api.openshift.com/api/assisted-images/.../full.iso'
+```
+
+2- Clone the Git Repo
 
 ```bash
 git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
 ```
 
+3- Change permissions for assisted-installer-prep.sh to be executable
+
 ```bash
 chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
+```
+
+4- Run Script
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
 ```
 
 ---
