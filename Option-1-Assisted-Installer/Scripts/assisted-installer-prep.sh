@@ -99,28 +99,6 @@ read_non_empty() {
 
 #------------------------------------------------------------------------------
 
-# Function to Read Non-Empty Secret Input (Hidden)
-read_non_empty_secret() {
-  local prompt="$1"
-  local value
-
-  while true; do
-    read -rsp "$prompt" value
-    echo ""
-
-    if [[ -z "$value" ]]; then
-      echo -e "${RED}   Input cannot be empty. Please try again.${NC}" >&2
-      echo ""
-      continue
-    fi
-
-    echo "$value"
-    return 0
-  done
-}
-
-#------------------------------------------------------------------------------
-
 # Function to Validate integer input (non-empty, numeric, within range)
 read_int_in_range() {
   local prompt="$1" min="$2" max="$3" value
@@ -164,7 +142,7 @@ create_vm() {
   local vm_number="$5"
   local node_type="$6"
 
-  echo -e "${BRIGHT_BLUE}   Creating VM number ${vm_number}: ${vm_name}${NC}"
+  echo -e "${CYAN}   Creating VM number ${vm_number}: ${vm_name}${NC}"
 
   # Create VM (govc vm.create may power it on automatically)
   if ! govc vm.create -folder "$GOVC_VM_FOLDER_PATH" -ds "$GOVC_DATASTORE_PATH" -net "$GOVC_NETWORK_PATH" \
@@ -286,10 +264,10 @@ echo ""
 
 while true; do
   echo -e "${YELLOW} - Please provide the required lab Environment info below:${NC}"
-  echo -e "${BLUE}     - VMware vCenter Server Info:${NC}"
+  echo -e "${CYAN}     - VMware vCenter Server Info:${NC}"
   VCENTER_URL=$(read_non_empty "       Enter vCenter URL (e.g. vc.example.com): ")
   VCENTER_USERNAME=$(read_non_empty "       Enter vCenter username: ")
-  VCENTER_PASSWORD=$(read_non_empty_secret "       Enter vCenter password: ")
+  VCENTER_PASSWORD=$(read_non_empty "       Enter vCenter password: ")
   GOVC_VM_FOLDER_PATH=$(read_non_empty "       Enter VM folder full path (e.g. /SDDC-Datacenter/vm/Workloads/sandbox-r5vnx): ")
   GOVC_DATASTORE_NAME=$(read_non_empty "       Enter datastore name only (e.g. workload_share_yBaQN): ")
   GOVC_NETWORK_NAME=$(read_non_empty "       Enter network name only (e.g. segment-sandbox-r5vnx): ")
@@ -298,16 +276,13 @@ while true; do
   # Extract datacenter name, datastore + network paths from the VM folder path
   DC_NAME="$(echo "$GOVC_VM_FOLDER_PATH" | awk -F'/' '{print $2}')"
   GOVC_DATACENTER_PATH="/${DC_NAME}"
+  GOVC_VM_FOLDER_NAME="$(echo "$GOVC_VM_FOLDER_PATH" | awk -F'/' '{print $5}')"
+  GOVC_VM_FOLDER_NAME="$/Workloads{GOVC_VM_FOLDER_NAME}"
   GOVC_DATASTORE_PATH="${GOVC_DATACENTER_PATH}/datastore/${GOVC_DATASTORE_NAME}"
   GOVC_NETWORK_PATH="${GOVC_DATACENTER_PATH}/network/${GOVC_NETWORK_NAME}"
 
-  echo -e "${BLUE}     - Red Hat OpenShift Cluster Info:${NC}"
+  echo -e "${CYAN}     - Red Hat OpenShift Cluster Info:${NC}"
   OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
-  echo ""
-
-  echo -e "${BLUE}     - Lab Environment Info:${NC}"
-  LAB_DOMAIN=$(read_non_empty "       Enter lab base domain (e.g. dynamic.example.com): ")
-  LAB_ID=$(read_non_empty "       Enter lab ID (e.g. vrtzn): ")
   echo ""
 
   echo -e "${YELLOW} - Please review the provided information below & confirm (Y/N):${NC}"
@@ -315,9 +290,15 @@ while true; do
   echo "   vCenter URL       : $VCENTER_URL"
   echo "   vCenter Username  : $VCENTER_USERNAME"
   echo "   vCenter Password  : ********"
+  echo "   Datacenter Name   : $DC_NAME"
+  echo "   Datacenter Path   : $GOVC_DATACENTER_PATH"
+  echo "   VM Folder Name    : $GOVC_VM_FOLDER_NAME"
+  echo "   VM Folder Path    : $GOVC_VM_FOLDER_PATH"
+  echo "   Datastore Name    : $GOVC_VM_FOLDER_PATH"
+  echo "   Datastore Path    : $GOVC_DATASTORE_PATH"
+  echo "   Network Name      : $GOVC_DATASTORE_NAME"
+  echo "   Network Path      : $GOVC_NETWORK_PATH"
   echo "   OpenShift Release : $OCP_RELEASE"
-  echo "   Lab Base Domain   : $LAB_DOMAIN"
-  echo "   Lab ID            : $LAB_ID"
   echo "   ----------------------------------------"
   echo ""
 
@@ -373,7 +354,6 @@ while true; do
   echo -e "${YELLOW} - Please Select The Intended OpenShift Cluster Type:${NC}"
   echo "   1) 3-node compact cluster (masters also act as workers)"
   echo "   2) Standard cluster (3 masters + x worker nodes)"
-  echo ""
 
   # --- Ask for cluster type ---
   while true; do
@@ -472,7 +452,7 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
     echo -e "${GREEN}   Using default VM sizing. Proceeding...${NC}"
   else
     while true; do
-      echo -e "${BLUE}   Enter custom VM sizing for compact nodes:${NC}"
+      echo -e "${CYAN}   Enter custom VM sizing for compact nodes:${NC}"
 
       MASTER_CPU=$(read_int_in_range "   vCPU [${CPU_MIN}-${CPU_MAX}]: " "$CPU_MIN" "$CPU_MAX")
       MASTER_RAM_GB=$(read_int_in_range "   RAM in GB [${RAM_MIN}-${RAM_MAX}]: " "$RAM_MIN" "$RAM_MAX")
@@ -533,7 +513,7 @@ else
   else
     # --- Custom sizing for masters (with confirmation) ---
     while true; do
-      echo -e "${BLUE}   Enter custom VM sizing for Master nodes:${NC}"
+      echo -e "${CYAN}   Enter custom VM sizing for Master nodes:${NC}"
 
       MASTER_CPU=$(read_int_in_range "   Master vCPU [${M_CPU_MIN}-${M_CPU_MAX}]: " "$M_CPU_MIN" "$M_CPU_MAX")
       MASTER_RAM_GB=$(read_int_in_range "   Master RAM in GB [${M_RAM_MIN}-${M_RAM_MAX}]: " "$M_RAM_MIN" "$M_RAM_MAX")
@@ -560,7 +540,7 @@ else
 
     # --- Custom sizing for workers (with confirmation) ---
     while true; do
-      echo -e "${BLUE}   Enter custom VM sizing for Worker nodes:${NC}"
+      echo -e "${CYAN}   Enter custom VM sizing for Worker nodes:${NC}"
 
       WORKER_CPU=$(read_int_in_range "   Worker vCPU [${W_CPU_MIN}-${W_CPU_MAX}]: " "$W_CPU_MIN" "$W_CPU_MAX")
       WORKER_RAM_GB=$(read_int_in_range "   Worker RAM in GB [${W_RAM_MIN}-${W_RAM_MAX}]: " "$W_RAM_MIN" "$W_RAM_MAX")
@@ -612,8 +592,7 @@ echo -e "${YELLOW} Retrieve Assisted Installer ISO Download Command:${NC}"
 echo -e "${YELLOW} -------------------------------------------------${NC}"
 echo ""
 echo -e "${YELLOW} Please paste the FULL wget command exactly as provided by the Assisted Installer.${NC}"
-echo -e "${GREY} Example:${NC}"
-echo -e "${GREY}   wget -O discovery_image_xxx.iso 'https://api.openshift.com/api/assisted-images/.../full.iso'${NC}"
+echo "    Example: wget -O discovery_image_xxx.iso 'https://api.openshift.com/api/assisted-images/.../full.iso"
 echo ""
 
 # Ensure wget exists
@@ -657,6 +636,7 @@ while true; do
     continue
   fi
 
+  echo ""
   echo -e "   Validating ISO URL reachability..."
 
   # Reachability check (NO download)
@@ -696,18 +676,18 @@ echo ""
 echo -e "${YELLOW} ====== Final Configuration Summary ======${NC}"
 echo ""
 
-echo -e "${BLUE} - Lab Environment:${NC}"
+echo -e "${CYAN} - Lab Environment:${NC}"
 echo "   Lab ID             : $LAB_ID"
 echo "   Lab Domain         : $LAB_DOMAIN"
 echo ""
 
-echo -e "${BLUE} - vCenter Configuration:${NC}"
+echo -e "${CYAN} - vCenter Configuration:${NC}"
 echo "   vCenter URL        : $GOVC_URL"
 echo "   vCenter Username   : $GOVC_USERNAME"
 echo "   vCenter Password   : ********"
 echo ""
 
-echo -e "${BLUE} - OpenShift Configuration:${NC}"
+echo -e "${CYAN} - OpenShift Configuration:${NC}"
 echo "   OpenShift Release  : $OCP_RELEASE"
 echo "   ISO Download WGET  : $ISO_WGET_CMD"
 echo "   Cluster Mode       : $CLUSTER_MODE"
@@ -715,7 +695,7 @@ echo "   Master Nodes       : $MASTER_COUNT"
 echo "   Worker Nodes       : $WORKER_COUNT"
 echo ""
 
-echo -e "${BLUE} - VM Sizing:${NC}"
+echo -e "${CYAN} - VM Sizing:${NC}"
 
 if [[ "$CLUSTER_MODE" == "compact" ]]; then
   echo "   Compact Nodes (Masters act as Workers):"
@@ -735,7 +715,7 @@ else
 fi
 
 echo ""
-echo -e "${YELLOW}=======================================================================${NC}"
+echo -e "${YELLOW}==========================================${NC}"
 echo ""
 
 if confirm_yn "   Proceed with the above configuration and start preparation? (Y/N): "; then
@@ -857,13 +837,13 @@ else
   OC_TAR="openshift-client-linux.tar.gz"
   OC_URL="https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OCP_RELEASE}/${OC_TAR}"
 
-  echo -e "${BLUE} Downloading oc CLI...${NC}"
+  echo -e "${CYAN} Downloading oc CLI...${NC}"
   wget -q -O "${TMP_DIR}/${OC_TAR}" "$OC_URL"
 
-  echo -e "${BLUE} Extracting oc and kubectl...${NC}"
+  echo -e "${CYAN} Extracting oc and kubectl...${NC}"
   tar -xzf "${TMP_DIR}/${OC_TAR}" -C "$TMP_DIR"
 
-  echo -e "${BLUE} Installing binaries to /usr/local/bin...${NC}"
+  echo -e "${CYAN} Installing binaries to /usr/local/bin...${NC}"
   sudo mv "${TMP_DIR}/oc" "${TMP_DIR}/kubectl" /usr/local/bin/
   sudo chmod +x /usr/local/bin/oc /usr/local/bin/kubectl
 
@@ -889,13 +869,13 @@ echo -e "${YELLOW} --------------------${NC}"
 if command -v helm >/dev/null 2>&1; then
   echo -e "${GREEN} Helm is already installed. Skipping.${NC}"
 else
-  echo -e "${BLUE} Downloading Helm binary from Red Hat mirror...${NC}"
+  echo -e "${CYAN} Downloading Helm binary from Red Hat mirror...${NC}"
   if ! sudo curl -fsSL https://mirror.openshift.com/pub/openshift-v4/clients/helm/latest/helm-linux-amd64 -o /usr/local/bin/helm; then
     echo -e "${RED} ERROR: Failed to download Helm binary.${NC}"
     echo -e "${RED} Please check the issue and install Helm manually after script complete.${NC}"
   fi
 
-  echo -e "${BLUE} Setting execute permission...${NC}"
+  echo -e "${CYAN} Setting execute permission...${NC}"
   sudo chmod +x /usr/local/bin/helm
 
   echo -e "${GREEN} Helm installed successfully.${NC}"
@@ -939,7 +919,7 @@ echo -e "${GREEN}   ISO uploaded successfully.${NC}"
 echo -e "${GREEN}   Datastore ISO path: ${DATASTORE_ISO_PATH}${NC}"
 
 echo ""
-echo " ================================================================================== "
+echo "   ---------------------------------------------------- "
 echo ""
 
 #----------------------------------------------------------------------
@@ -954,8 +934,7 @@ echo ""
 VM_LIST=()   # store created VM names so we can list them all at the end
 
 if [[ "$CLUSTER_MODE" == "compact" ]]; then
-  echo -e "${BRIGHT_BLUE}   Cluster type: Compact (3 nodes)${NC}"
-  echo -e "${BRIGHT_BLUE}   Creating & Configuring VMs...${NC}"
+  echo -e "${CYAN}   Cluster type: Compact (3 nodes) - Creating & Configuring VMs...${NC}"
   echo ""
   for i in 1 2 3; do
     VM_NAME="demo-ocp-mgmt-master-0${i}"
@@ -965,13 +944,13 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
     echo ""
   done
 else
-  echo -e "${BRIGHT_BLUE}   Cluster type: Standard (3 masters + ${WORKER_COUNT} workers)${NC}"
-  echo -e "${BRIGHT_BLUE}   Creating & Configuring VMs...${NC}"
+  echo -e "${CYAN}   Cluster type: Standard (3 masters + ${WORKER_COUNT} workers)${NC}"
+  echo -e "${CYAN}   Creating & Configuring VMs...${NC}"
   echo ""
 
   # Masters
   for i in 1 2 3; do
-    echo -e "${BRIGHT_BLUE}   Creating Master Nodes...${NC}"
+    echo -e "${CYAN}   Creating Master Nodes...${NC}"
     echo ""
     VM_NAME="demo-ocp-mgmt-master-0${i}"
     VM_TYPE="Master"
@@ -982,7 +961,7 @@ else
 
   # Workers
   for i in $(seq 1 "$WORKER_COUNT"); do
-    echo -e "${BRIGHT_BLUE}   Creating Worker Nodes...${NC}"
+    echo -e "${CYAN}   Creating Worker Nodes...${NC}"
     echo ""
     VM_NAME="demo-ocp-mgmt-worker-0${i}"
     VM_TYPE="Worker"
@@ -1005,6 +984,8 @@ echo -e "${YELLOW} Printing the list of deployed VM and thier info...${NC}"
 echo -e "${YELLOW} --------------------------------------------------${NC}"
 echo ""
 
+sleep 60
+
 printf "%-32s %-20s %-20s\n" "VM Name" "MAC Address" "IP Address"
 printf "%-32s %-20s %-20s\n" "--------------------------------" "--------------------" "--------------------"
 
@@ -1018,6 +999,7 @@ for vm in "${VM_LIST[@]}"; do
   VM_IP="${VM_IP:-PENDING}"
 
   printf "%-32s %-20s %-20s\n" "$vm" "$VM_MAC" "$VM_IP"
+  sleep 3
 done
 
 echo ""

@@ -51,5 +51,14 @@ This section serves as the primary step-by-step guide for using this repository 
 
 > **Note:** This repository supports multiple deployment options and scenarios, with each subsection dedicated to a specific option or scenario.
 
+
+```bash
+git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
+```
+
+```bash
+chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
+```
+
 ---
 
