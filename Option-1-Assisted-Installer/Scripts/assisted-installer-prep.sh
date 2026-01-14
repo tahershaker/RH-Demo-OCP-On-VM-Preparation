@@ -938,11 +938,11 @@ else
   echo -e "${CYAN}   Cluster type: Standard (3 masters + ${WORKER_COUNT} workers)${NC}"
   echo -e "${CYAN}   Creating & Configuring VMs...${NC}"
   echo ""
+  echo -e "${CYAN}   Creating Master Nodes...${NC}"
+  echo ""
 
   # Masters
   for i in 1 2 3; do
-    echo -e "${CYAN}   Creating Master Nodes...${NC}"
-    echo ""
     VM_NAME="demo-ocp-mgmt-master-0${i}"
     VM_TYPE="Master"
     create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE"
@@ -950,10 +950,11 @@ else
     echo ""
   done
 
+  echo -e "${CYAN}   Creating Worker Nodes...${NC}"
+  echo ""
+
   # Workers
   for i in $(seq 1 "$WORKER_COUNT"); do
-    echo -e "${CYAN}   Creating Worker Nodes...${NC}"
-    echo ""
     VM_NAME="demo-ocp-mgmt-worker-0${i}"
     VM_TYPE="Worker"
     create_vm "$VM_NAME" "$WORKER_CPU" "$WORKER_RAM_GB" "$WORKER_DISK_GB" "$i" "$VM_TYPE"
