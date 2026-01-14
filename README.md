@@ -91,5 +91,7 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assis
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
 ```
 
+> Please Note: Other Scripts are available for other activities. Please refer to the [Option-1-Assisted-Installer Section](/Option-1-Assisted-Installer/README.md) for more info
+
 ---
 
