@@ -3,10 +3,12 @@
 #===================================================================================
 
 #-------------------------------------------------------------
-# Add strict bash safety
+# Add strict bash safety & Set trap to handel script interruption
 #-------------------------------------------------------------
 
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "\n ---- Script interrupted. Exiting..."; exit 1' INT TERM
+trap 'rc=$?; echo "\n ---- ERROR: line ${LINENO}: ${BASH_COMMAND}" >&2; exit $rc' ERR
 
 #===================================================================================
 
@@ -40,14 +42,6 @@ BRIGHT_BLUE='\033[1;34m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'   # Reset / No Color
-
-#===================================================================================
-
-#-------------------------------------------------------------
-# Set trap to handel script interruption
-#-------------------------------------------------------------
-
-trap 'echo -e "\n${RED} ---- Script interrupted. Exiting...${NC}"; exit 1' INT TERM
 
 #===================================================================================
 
@@ -140,7 +134,6 @@ create_vm() {
   local ram_gb="$3"
   local disk_gb="$4"
   local vm_number="$5"
-  local node_type="$6"
 
   echo -e "${CYAN}   Creating VM number ${vm_number}: ${vm_name}${NC}"
 
@@ -205,15 +198,13 @@ create_vm() {
   # Print VM configured
   echo "   VM number ${vm_number} - ${vm_name} - configured successfully. Powering On..."
 
-  # Power On VM - Sleep for 3 seconds to ensure all configurations are set
-  if [[ "$node_type" == "Master" ]]; then
-    sleep 3
-    if ! govc vm.power -on "$VM_NAME" >/dev/null 2>&1; then
-      echo -e "${RED}   ERROR: Failed to power on ${VM_NAME}${NC}"
-      echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
-      exit 1
-    fi
-  fi 
+  # Sleep for 3 sec and then power-on VM.
+  sleep 3
+  if ! govc vm.power -on "$VM_NAME" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to power on ${VM_NAME}${NC}"
+    echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+    exit 1
+  fi
 
   echo -e "${GREEN}      VM number ${vm_number} - ${vm_name} - created & configured successfully. Proceeding...${NC}"
 }
@@ -273,6 +264,10 @@ while true; do
   GOVC_NETWORK_NAME=$(read_non_empty "       Enter network name only (e.g. segment-sandbox-r5vnx): ")
   echo ""
 
+  echo -e "${CYAN}     - Red Hat OpenShift Cluster Info:${NC}"
+  OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
+  echo ""
+
   # Extract datacenter name, datastore + network paths from the VM folder path
   DC_NAME="$(echo "$GOVC_VM_FOLDER_PATH" | awk -F'/' '{print $2}')"
   GOVC_DATACENTER_PATH="/${DC_NAME}"
@@ -280,10 +275,6 @@ while true; do
   GOVC_VM_FOLDER_NAME="$/Workloads{GOVC_VM_FOLDER_NAME}"
   GOVC_DATASTORE_PATH="${GOVC_DATACENTER_PATH}/datastore/${GOVC_DATASTORE_NAME}"
   GOVC_NETWORK_PATH="${GOVC_DATACENTER_PATH}/network/${GOVC_NETWORK_NAME}"
-
-  echo -e "${CYAN}     - Red Hat OpenShift Cluster Info:${NC}"
-  OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
-  echo ""
 
   echo -e "${YELLOW} - Please review the provided information below & confirm (Y/N):${NC}"
   echo "   ----------------------------------------"
@@ -325,8 +316,6 @@ export GOVC_INSECURE=1
 # environment variables for use by govc and OpenShift preparation tasks.
 #
 # Variables set by this section:
-# - LAB_ID          : Unique identifier for the lab
-# - LAB_DOMAIN      : Base domain for the lab environment
 # - GOVC_URL        : vCenter URL
 # - GOVC_USERNAME   : vCenter username
 # - GOVC_PASSWORD   : vCenter password
