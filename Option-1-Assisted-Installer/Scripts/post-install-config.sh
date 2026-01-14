@@ -242,7 +242,7 @@ echo ""
 #-------------------------
 # 2) Create/Configure Admin User (HTPasswd)
 #-------------------------
-echo -e "${CYAN} - Creating/Updating HTPasswd admin user${NC}"
+echo -e "${CYAN} - Creating/Updating admin user...${NC}"
 
 OCP_USERS_DIR="$HOME/ocp-users"
 HTPASS_FILE="${OCP_USERS_DIR}/users.htpasswd"
@@ -254,19 +254,22 @@ NS_CONFIG="openshift-config"
 mkdir -p "$OCP_USERS_DIR"
 
 # Create/Update htpasswd file (idempotent)
+echo "   Creating/Updating HTPasswd file..."
 if [[ -f "$HTPASS_FILE" ]]; then
   htpasswd -B -b "$HTPASS_FILE" "$ADMIN_USERNAME" "$ADMIN_PASSWORD" >/dev/null 2>&1
 else
   htpasswd -c -B -b "$HTPASS_FILE" "$ADMIN_USERNAME" "$ADMIN_PASSWORD" >/dev/null 2>&1
 fi
 
-echo -e "   HTPasswd file updated: $HTPASS_FILE"
+echo "   HTPasswd file updated: $HTPASS_FILE"
 
 # Create or update secret (safe re-run)
+echo "   Creating/Updating ${ADMIN_USERNAME} user secret..."
 oc -n "$NS_CONFIG" create secret generic "$SECRET_NAME" --from-file=htpasswd="$HTPASS_FILE" --dry-run=client -o yaml | oc apply -f - >/dev/null 2>&1
-echo -e "   Secret created/updated: ${NS_CONFIG}/${SECRET_NAME}"
+echo "   Secret created/updated: ${NS_CONFIG}/${SECRET_NAME}"
 
 # Apply OAuth config (idempotent)
+echo "   Creating OAUTH to use HTPasswd provider..."
 cat > "$OAUTH_YAML" <<EOF
 apiVersion: config.openshift.io/v1
 kind: OAuth
@@ -283,13 +286,37 @@ spec:
 EOF
 
 oc apply -f "$OAUTH_YAML" >/dev/null 2>&1
-echo -e "   OAuth updated to use HTPasswd provider: ${IDP_NAME}${NC}"
-echo -e "   ---> Waiting 60 seconds for OAuth to reload...${NC}"
+echo "   OAuth updated to use HTPasswd provider: ${IDP_NAME}${NC}"
+echo "   ---> Waiting 60 seconds for OAuth to reload...${NC}"
 sleep 60
 
 # Grant cluster-admin (idempotent)
+echo "   Granting cluster-admin to ${ADMIN_USERNAME} user..."
 oc adm policy add-cluster-role-to-user cluster-admin "$ADMIN_USERNAME" >/dev/null 2>&1 || true
-echo -e "${GREEN}   cluster-admin role granted to: ${ADMIN_USERNAME}${NC}"
+echo "   cluster-admin role granted to: ${ADMIN_USERNAME}"
+echo "   Verifying permissions for ${ADMIN_USERNAME}..."
+
+CAN_GET_PM="$(oc auth can-i get packagemanifests -n openshift-marketplace --as="$ADMIN_USERNAME")"
+CAN_LIST_CS="$(oc auth can-i list catalogsources -n openshift-marketplace --as="$ADMIN_USERNAME")"
+
+echo "   ---> Can ${ADMIN_USERNAME} get marketplace PackageManifests? : ${CAN_GET_PM}"
+echo "   ---> Can ${ADMIN_USERNAME} list marketplace CatalogSources? : ${CAN_LIST_CS}"
+
+
+if [[ "$CAN_GET_PM" != "yes" ]]; then
+  echo -e "${RED}   ERROR: ${ADMIN_USERNAME} does NOT have required permissions.${NC}"
+  echo -e "${RED}   Ensure cluster-admin role is correctly assigned.${NC}"
+  echo -e "${RED}   using the oc with the default kubeconfig - oc adm policy add-cluster-role-to-user cluster-admin admin${NC}"
+fi
+
+if [[ "$CAN_LIST_CS" != "yes" ]]; then
+  echo -e "${RED}   ERROR: ${ADMIN_USERNAME} does NOT have required permissions.${NC}"
+  echo -e "${RED}   Ensure cluster-admin role is correctly assigned.${NC}"
+  echo -e "${RED}   using the oc with the default kubeconfig - oc adm policy add-cluster-role-to-user cluster-admin admin${NC}"
+fi
+
+echo ""
+echo -e "${GREEN}   Admin user has been configured successfuly.${NC}"
 
 echo ""
 echo " ================================================================================== "
