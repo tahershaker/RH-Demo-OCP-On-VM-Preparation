@@ -981,8 +981,8 @@ echo ""
 
 sleep 60
 
-printf "%-32s %-20s %-20s\n" "VM Name" "MAC Address" "IP Address"
-printf "%-32s %-20s %-20s\n" "--------------------------------" "--------------------" "--------------------"
+printf "%-32s %-20s %-20s\n" " VM Name" " MAC Address" " IP Address"
+printf "%-32s %-20s %-20s\n" " --------------------------------" "--------------------" "--------------------"
 
 for vm in "${VM_LIST[@]}"; do
   # Get first NIC MAC
@@ -993,7 +993,7 @@ for vm in "${VM_LIST[@]}"; do
   VM_IP="$(govc vm.ip "$vm" 2>/dev/null | head -n 1 || true)"
   VM_IP="${VM_IP:-PENDING}"
 
-  printf "%-32s %-20s %-20s\n" "$vm" "$VM_MAC" "$VM_IP"
+  printf "%-32s %-20s %-20s\n" " $vm" " $VM_MAC" " $VM_IP"
   sleep 3
 done
 
