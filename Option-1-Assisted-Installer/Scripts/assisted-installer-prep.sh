@@ -975,6 +975,10 @@ echo -e "${YELLOW} Printing the list of deployed VM and thier info...${NC}"
 echo -e "${YELLOW} --------------------------------------------------${NC}"
 echo ""
 
+echo " Retrieving Info..."
+echo " It may take couple of minutes - Please wait..."
+echo ""
+
 sleep 60
 
 printf "%-32s %-20s %-20s\n" "VM Name" "MAC Address" "IP Address"
@@ -982,11 +986,11 @@ printf "%-32s %-20s %-20s\n" "--------------------------------" "---------------
 
 for vm in "${VM_LIST[@]}"; do
   # Get first NIC MAC
-  VM_MAC="$(govc device.info -vm "$vm" 2>/dev/null | awk '/MAC Address:/ {sub(/.*MAC Address:[[:space:]]*/, ""); print; exit}')"
+  VM_MAC="$(govc device.info -vm "$vm" 2>/dev/null | awk '/MAC Address:/ {sub(/.*MAC Address:[[:space:]]*/, ""); print; exit}' || true)"
   VM_MAC="${VM_MAC:-N/A}"
 
   # Get IP (single attempt after sleep)
-  VM_IP="$(govc vm.ip "$vm" 2>/dev/null | head -n 1)"
+  VM_IP="$(govc vm.ip "$vm" 2>/dev/null | head -n 1 || true)"
   VM_IP="${VM_IP:-PENDING}"
 
   printf "%-32s %-20s %-20s\n" "$vm" "$VM_MAC" "$VM_IP"
@@ -999,6 +1003,8 @@ echo -e "${GREEN}   All VMs info are listed.${NC}"
 echo ""
 echo " ================================================================================== "
 echo ""
+
+#===================================================================================
 
 #-------------------------------------------------------------
 # Print Script Completed
