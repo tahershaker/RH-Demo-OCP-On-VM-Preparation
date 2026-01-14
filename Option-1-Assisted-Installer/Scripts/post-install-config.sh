@@ -178,37 +178,28 @@ fi
 CLUSTER_USER="$(oc whoami 2>/dev/null || true)"
 CLUSTER_API="$(oc whoami --show-server 2>/dev/null || true)"
 
-echo -e "${GREEN}   kubeconfig OK.${NC}"
-echo -e "${GREEN}   Connected as: ${CLUSTER_USER}${NC}"
-echo -e "${GREEN}   API Server   : ${CLUSTER_API}${NC}"
+echo -e "${GREEN}   kubeconfig check is successful.${NC}"
+echo "   Connected as: ${CLUSTER_USER}"
+echo "   API Server   : ${CLUSTER_API}"
 echo ""
 
+# 2) Admin user inputs (username fixed to admin)
 echo -e "${CYAN} - Admin User Input${NC}"
-ADMIN_USERNAME="$(read_non_empty "   Enter admin username to create (default: admin): ")"
-ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-ADMIN_PASSWORD="$(read_non_empty "   Enter password for ${ADMIN_USERNAME}: ")"
-echo ""
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="$(read_non_empty "   Enter password for ${ADMIN_USERNAME} user: ")"
 
-echo -e "${CYAN} - LVM Cluster Input${NC}"
-LVM_VG_NAME="$(read_non_empty "   Enter LVM Volume Group name (default: vg1): ")"
-LVM_VG_NAME="${LVM_VG_NAME:-vg1}"
-LVM_THINPOOL_NAME="$(read_non_empty "   Enter LVM thin pool name (default: thin-pool-1): ")"
-LVM_THINPOOL_NAME="${LVM_THINPOOL_NAME:-thin-pool-1}"
-echo ""
+# Ensure no new-line or spaces in the provided password
+ADMIN_PASSWORD="$(printf '%s' "$ADMIN_PASSWORD" | tr -d '\r\n' | xargs)"
 
+echo ""
 echo -e "${YELLOW} - Please review & confirm:${NC}"
 echo "   ----------------------------------------"
-echo "   Kubeconfig Path     : $HOME/.kube/config"
-echo "   Connected User      : $CLUSTER_USER"
-echo "   API Server          : $CLUSTER_API"
-echo "   New Admin Username  : $ADMIN_USERNAME"
-echo "   New Admin Password  : $ADMIN_PASSWORD"
-echo "   LVM VG Name         : $LVM_VG_NAME"
-echo "   LVM Thin Pool Name  : $LVM_THINPOOL_NAME"
+printf "   Admin Username  : %s\n" "$ADMIN_USERNAME"
+printf "   Admin Password  : %s\n" "$ADMIN_PASSWORD"
 echo "   ----------------------------------------"
 echo ""
 
-if confirm_yn "   Proceed with user creation + LVM operator install/config? (Y/N): "; then
+if confirm_yn "   Proceed with user creation? (Y/N): "; then
   echo -e "${GREEN}   Input confirmed. Proceeding...${NC}"
 else
   echo -e "${RED}   Not confirmed. Exiting.${NC}"
@@ -257,7 +248,7 @@ OCP_USERS_DIR="$HOME/ocp-users"
 HTPASS_FILE="${OCP_USERS_DIR}/users.htpasswd"
 OAUTH_YAML="${OCP_USERS_DIR}/oauth-htpasswd.yaml"
 IDP_NAME="local-htpasswd"
-SECRET_NAME="htpass-secret"
+SECRET_NAME="admin-htpass-secret"
 NS_CONFIG="openshift-config"
 
 mkdir -p "$OCP_USERS_DIR"
@@ -269,14 +260,11 @@ else
   htpasswd -c -B -b "$HTPASS_FILE" "$ADMIN_USERNAME" "$ADMIN_PASSWORD" >/dev/null 2>&1
 fi
 
-echo -e "${GREEN}   HTPasswd file updated: $HTPASS_FILE${NC}"
+echo -e "   HTPasswd file updated: $HTPASS_FILE"
 
-# Create or update secret (idempotent)
-oc -n "$NS_CONFIG" get secret "$SECRET_NAME" >/dev/null 2>&1 \
-  && oc -n "$NS_CONFIG" delete secret "$SECRET_NAME" >/dev/null 2>&1 || true
-
-oc -n "$NS_CONFIG" create secret generic "$SECRET_NAME" --from-file=htpasswd="$HTPASS_FILE" >/dev/null 2>&1
-echo -e "${GREEN}   Secret created: ${NS_CONFIG}/${SECRET_NAME}${NC}"
+# Create or update secret (safe re-run)
+oc -n "$NS_CONFIG" create secret generic "$SECRET_NAME" --from-file=htpasswd="$HTPASS_FILE" --dry-run=client -o yaml | oc apply -f - >/dev/null 2>&1
+echo -e "   Secret created/updated: ${NS_CONFIG}/${SECRET_NAME}"
 
 # Apply OAuth config (idempotent)
 cat > "$OAUTH_YAML" <<EOF
@@ -295,8 +283,8 @@ spec:
 EOF
 
 oc apply -f "$OAUTH_YAML" >/dev/null 2>&1
-echo -e "${GREEN}   OAuth updated to use HTPasswd provider: ${IDP_NAME}${NC}"
-echo -e "${CYAN}   Waiting 60 seconds for OAuth to reload...${NC}"
+echo -e "   OAuth updated to use HTPasswd provider: ${IDP_NAME}${NC}"
+echo -e "   ---> Waiting 60 seconds for OAuth to reload...${NC}"
 sleep 60
 
 # Grant cluster-admin (idempotent)
@@ -306,11 +294,6 @@ echo -e "${GREEN}   cluster-admin role granted to: ${ADMIN_USERNAME}${NC}"
 echo ""
 echo " ================================================================================== "
 echo ""
-
-
-
-
-
 
 #===================================================================================
 
