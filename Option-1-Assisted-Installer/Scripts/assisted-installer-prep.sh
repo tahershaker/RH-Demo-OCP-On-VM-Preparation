@@ -170,7 +170,7 @@ create_vm() {
   # Add second disk for worker nodes in standard cluster type or all nodes in a compact cluster type
   if [[ "$two_disks" == "true" ]]; then
     echo "   Adding second (data) disk: ${disk_gb}G ..."
-    if ! govc vm.disk.create -vm "$vm_name" -size "${disk_gb}G" >/dev/null 2>&1; then
+    if ! govc vm.disk.create -vm "$vm_name" -ds "$GOVC_DATASTORE_PATH" -name "${vm_name}-data.vmdk" -size "${disk_gb}G" >/dev/null 2>&1; then
       echo -e "${RED}   ERROR: Failed to add data disk (${disk_gb}G) to ${vm_name}${NC}"
       echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
       exit 1
@@ -952,7 +952,7 @@ if [[ "$CLUSTER_MODE" == "compact" ]]; then
   for i in 1 2 3; do
     VM_NAME="demo-ocp-mgmt-master-0${i}"
     VM_TYPE="Master"
-    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE"
+    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE" 
     VM_LIST+=("$VM_NAME")
     echo ""
   done
@@ -967,7 +967,7 @@ else
   for i in 1 2 3; do
     VM_NAME="demo-ocp-mgmt-master-0${i}"
     VM_TYPE="Master"
-    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE"
+    create_vm "$VM_NAME" "$MASTER_CPU" "$MASTER_RAM_GB" "$MASTER_DISK_GB" "$i" "$VM_TYPE" 
     VM_LIST+=("$VM_NAME")
     echo ""
   done
@@ -979,7 +979,7 @@ else
   for i in $(seq 1 "$WORKER_COUNT"); do
     VM_NAME="demo-ocp-mgmt-worker-0${i}"
     VM_TYPE="Worker"
-    create_vm "$VM_NAME" "$WORKER_CPU" "$WORKER_RAM_GB" "$WORKER_DISK_GB" "$i" "$VM_TYPE"
+    create_vm "$VM_NAME" "$WORKER_CPU" "$WORKER_RAM_GB" "$WORKER_DISK_GB" "$i" "$VM_TYPE" 
     VM_LIST+=("$VM_NAME")
     echo ""
   done
