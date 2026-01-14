@@ -261,12 +261,12 @@ else
   htpasswd -c -B -b "$HTPASS_FILE" "$ADMIN_USERNAME" "$ADMIN_PASSWORD" >/dev/null 2>&1
 fi
 
-echo "   HTPasswd file updated: $HTPASS_FILE"
+echo "      HTPasswd file updated: $HTPASS_FILE"
 
 # Create or update secret (safe re-run)
 echo "   Creating/Updating ${ADMIN_USERNAME} user secret..."
 oc -n "$NS_CONFIG" create secret generic "$SECRET_NAME" --from-file=htpasswd="$HTPASS_FILE" --dry-run=client -o yaml | oc apply -f - >/dev/null 2>&1
-echo "   Secret created/updated: ${NS_CONFIG}/${SECRET_NAME}"
+echo "      Secret created/updated: ${NS_CONFIG}/${SECRET_NAME}"
 
 # Apply OAuth config (idempotent)
 echo "   Creating OAUTH to use HTPasswd provider..."
@@ -286,21 +286,23 @@ spec:
 EOF
 
 oc apply -f "$OAUTH_YAML" >/dev/null 2>&1
-echo "   OAuth updated to use HTPasswd provider: ${IDP_NAME}${NC}"
-echo "   ---> Waiting 60 seconds for OAuth to reload...${NC}"
+echo "      OAuth updated to use HTPasswd provider: ${IDP_NAME}"
+echo "   ----------------------------------------------"
+echo "   ---> Waiting 60 seconds for OAuth to reload..."
+echo "   ----------------------------------------------"
 sleep 60
 
 # Grant cluster-admin (idempotent)
 echo "   Granting cluster-admin to ${ADMIN_USERNAME} user..."
 oc adm policy add-cluster-role-to-user cluster-admin "$ADMIN_USERNAME" >/dev/null 2>&1 || true
-echo "   cluster-admin role granted to: ${ADMIN_USERNAME}"
+echo "      cluster-admin role granted to: ${ADMIN_USERNAME}"
 echo "   Verifying permissions for ${ADMIN_USERNAME}..."
 
 CAN_GET_PM="$(oc auth can-i get packagemanifests -n openshift-marketplace --as="$ADMIN_USERNAME")"
 CAN_LIST_CS="$(oc auth can-i list catalogsources -n openshift-marketplace --as="$ADMIN_USERNAME")"
 
-echo "   ---> Can ${ADMIN_USERNAME} get marketplace PackageManifests? : ${CAN_GET_PM}"
-echo "   ---> Can ${ADMIN_USERNAME} list marketplace CatalogSources? : ${CAN_LIST_CS}"
+echo "      ---> Can ${ADMIN_USERNAME} get marketplace PackageManifests? : ${CAN_GET_PM}"
+echo "      ---> Can ${ADMIN_USERNAME} list marketplace CatalogSources? : ${CAN_LIST_CS}"
 
 
 if [[ "$CAN_GET_PM" != "yes" ]]; then
