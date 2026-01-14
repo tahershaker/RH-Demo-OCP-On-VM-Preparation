@@ -1100,7 +1100,7 @@ SCRIPT_OUTPUT_FILE="$HOME/script-output.txt"
   echo ""
   echo "=================================================================================="
   echo ""
-} >> "$SCRIPT_OUTPUT_FILE"
+} > "$SCRIPT_OUTPUT_FILE"
 
 echo -e "${GREEN} Script variables dumped to: $SCRIPT_OUTPUT_FILE${NC}"
 
