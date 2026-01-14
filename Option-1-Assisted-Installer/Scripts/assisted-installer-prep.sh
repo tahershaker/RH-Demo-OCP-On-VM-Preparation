@@ -134,12 +134,24 @@ create_vm() {
   local ram_gb="$3"
   local disk_gb="$4"
   local vm_number="$5"
+  local vm_type="$6"     # Master | Worker
+
+  local os_disk_gb=120
+
+  # Decide disk layout 
+  # two_disks=true for: compact OR (standard AND worker)
+  local two_disks="false"
+  if [[ "$CLUSTER_MODE" == "compact" ]]; then
+    two_disks="true"
+  elif [[ "$CLUSTER_MODE" == "standard" && "$vm_type" == "Worker" ]]; then
+    two_disks="true"
+  fi
 
   echo -e "${CYAN}   Creating VM number ${vm_number}: ${vm_name}${NC}"
 
   # Create VM (govc vm.create may power it on automatically)
   if ! govc vm.create -folder "$GOVC_VM_FOLDER_PATH" -ds "$GOVC_DATASTORE_PATH" -net "$GOVC_NETWORK_PATH" \
-      -c "$cpu" -m "$((ram_gb * 1024))" -disk "${disk_gb}G" \
+      -c "$cpu" -m "$((ram_gb * 1024))" -disk "${os_disk_gb}G" \
       "$vm_name" >/dev/null 2>&1; then
     echo -e "${RED}   ERROR: Failed to create VM: ${vm_name}${NC}"
     echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
@@ -147,13 +159,23 @@ create_vm() {
   fi
 
   # Ensure powered off before configuration
-  govc vm.power -off -force "$vm_name" >/dev/null 2>&1 || true
+  govc vm.power -off -force "$vm_name" >/dev/null 2>&1 || true    
 
   # Print VM created
   echo "   VM number ${vm_number} - ${vm_name} - created successfully. Adding required config..."
 
   # sleep for 3 seconds to ensure VM is powered-off
   sleep 3
+
+  # Add second disk for worker nodes in standard cluster type or all nodes in a compact cluster type
+  if [[ "$two_disks" == "true" ]]; then
+    echo "   Adding second (data) disk: ${disk_gb}G ..."
+    if ! govc vm.disk.create -vm "$vm_name" -size "${disk_gb}G" >/dev/null 2>&1; then
+      echo -e "${RED}   ERROR: Failed to add data disk (${disk_gb}G) to ${vm_name}${NC}"
+      echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
+      exit 1
+    fi
+  fi
 
   # Enable disk UUID
   echo "   Setting disk.EnableUUID to TRUE..."
@@ -200,8 +222,8 @@ create_vm() {
 
   # Sleep for 3 sec and then power-on VM.
   sleep 3
-  if ! govc vm.power -on "$VM_NAME" >/dev/null 2>&1; then
-    echo -e "${RED}   ERROR: Failed to power on ${VM_NAME}${NC}"
+  if ! govc vm.power -on "$vm_name" >/dev/null 2>&1; then
+    echo -e "${RED}   ERROR: Failed to power on ${vm_name}${NC}"
     echo -e "${RED}   An unexpected error. Please check issue and try again.${NC}"
     exit 1
   fi
