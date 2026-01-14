@@ -1002,7 +1002,7 @@ echo " Retrieving Info..."
 echo " It may take couple of minutes - Please wait..."
 echo ""
 
-sleep 60
+sleep 20
 
 printf "%-32s %-20s %-20s\n" " VM Name" " MAC Address" " IP Address"
 printf "%-32s %-20s %-20s\n" " --------------------------------" "--------------------" "--------------------"
@@ -1017,7 +1017,7 @@ for vm in "${VM_LIST[@]}"; do
   VM_IP="${VM_IP:-PENDING}"
 
   printf "%-32s %-20s %-20s\n" " $vm" " $VM_MAC" " $VM_IP"
-  sleep 3
+  sleep 1
 done
 
 echo ""
@@ -1026,6 +1026,83 @@ echo -e "${GREEN}   All VMs info are listed.${NC}"
 echo ""
 echo " ================================================================================== "
 echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Dump All Script Variables To File (for reference)
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Dumping all script variables and info into an output file...${NC}"
+echo -e "${YELLOW} ------------------------------------------------------------${NC}"
+echo ""
+
+SCRIPT_OUTPUT_FILE="$HOME/script-output.txt"
+
+{
+  echo "---- vCenter / GOVC ----"
+  echo "VCENTER_URL=$VCENTER_URL"
+  echo "VCENTER_USERNAME=$VCENTER_USERNAME"
+  echo "VCENTER_PASSWORD=$VCENTER_PASSWORD"
+  echo "DC_NAME=$DC_NAME"
+  echo "GOVC_URL=$GOVC_URL"
+  echo "GOVC_USERNAME=$GOVC_USERNAME"
+  echo "GOVC_PASSWORD=$GOVC_PASSWORD"
+  echo "GOVC_DATACENTER=$GOVC_DATACENTER"
+  echo "GOVC_INSECURE=$GOVC_INSECURE"
+  echo ""
+
+  echo "---- Paths ----"
+  echo "GOVC_VM_FOLDER_PATH=$GOVC_VM_FOLDER_PATH"
+  echo "GOVC_VM_FOLDER_NAME=$GOVC_VM_FOLDER_NAME"
+  echo "GOVC_DATACENTER_PATH=$GOVC_DATACENTER_PATH"
+  echo "GOVC_DATASTORE_NAME=$GOVC_DATASTORE_NAME"
+  echo "GOVC_DATASTORE_PATH=$GOVC_DATASTORE_PATH"
+  echo "GOVC_NETWORK_NAME=$GOVC_NETWORK_NAME"
+  echo "GOVC_NETWORK_PATH=$GOVC_NETWORK_PATH"
+  echo ""
+
+  echo "---- OpenShift / ISO ----"
+  echo "OCP_RELEASE=$OCP_RELEASE"
+  echo "ISO_WGET_CMD=$ISO_WGET_CMD"
+  echo "ISO_URL=${ISO_URL:-}"
+  echo "ISO_DIR=${ISO_DIR:-}"
+  echo "ISO_FILENAME=${ISO_FILENAME:-}"
+  echo "ISO_FULL_PATH=${ISO_FULL_PATH:-}"
+  echo "DATASTORE_ISO_PATH=${DATASTORE_ISO_PATH:-}"
+  echo ""
+
+  echo "---- Cluster Topology ----"
+  echo "CLUSTER_TYPE=$CLUSTER_TYPE"
+  echo "CLUSTER_MODE=$CLUSTER_MODE"
+  echo "MASTER_COUNT=$MASTER_COUNT"
+  echo "WORKER_COUNT=$WORKER_COUNT"
+  echo ""
+
+  echo "---- VM Sizing ----"
+  echo "MASTER_CPU=$MASTER_CPU"
+  echo "MASTER_RAM_GB=$MASTER_RAM_GB"
+  echo "MASTER_DISK_GB=$MASTER_DISK_GB"
+  echo "WORKER_CPU=$WORKER_CPU"
+  echo "WORKER_RAM_GB=$WORKER_RAM_GB"
+  echo "WORKER_DISK_GB=$WORKER_DISK_GB"
+  echo ""
+
+  echo "---- VM List ----"
+  if declare -p VM_LIST >/dev/null 2>&1; then
+    printf "VM_LIST=("
+    printf "'%s' " "${VM_LIST[@]}"
+    echo ")"
+  else
+    echo "VM_LIST="
+  fi
+
+  echo ""
+  echo "=================================================================================="
+  echo ""
+} >> "$SCRIPT_OUTPUT_FILE"
+
+echo -e "${GREEN} Script variables dumped to: $SCRIPT_OUTPUT_FILE${NC}"
 
 #===================================================================================
 
