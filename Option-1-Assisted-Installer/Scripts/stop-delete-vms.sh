@@ -246,7 +246,7 @@ echo -e "${YELLOW} --------------------------------${NC}"
 echo ""
 
 for vm in "${VM_DELETE_LIST[@]}"; do
-  echo -e "${CYAN}   Powering-Off & Deleting VM $vm${NC}"
+  echo "   Powering-Off & Deleting VM $vm"
 
   # Power off (ignore errors if already off)
   govc vm.power -off -force "$vm" >/dev/null 2>&1 || true
@@ -259,7 +259,7 @@ for vm in "${VM_DELETE_LIST[@]}"; do
     exit 1
   fi
 
-  echo -e "${GREEN}   VM $vm powered-off & deleted successfully. Proceeding...${NC}"
+  echo "      --- VM $vm powered-off & deleted successfully. Proceeding..."
 done
 
 echo ""
