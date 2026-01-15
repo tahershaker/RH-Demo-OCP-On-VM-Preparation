@@ -92,7 +92,7 @@ git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
 **Step 3:** Make the Assisted Installer scripts executable
 
 ```bash
-chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/*
+chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/*
 ```
 
 **Step 4:** Run the Assisted Installer preparation script
