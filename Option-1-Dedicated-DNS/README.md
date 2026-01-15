@@ -33,9 +33,7 @@ In this model, the bastion host is used strictly as an automation and access nod
     - Applies the requested hardware configuration to each VM
     - Attaches the Assisted Installer ISO to the created virtual machines
     - Powers on the virtual machines to make them ready for discovery in the Assisted Installer UI
-  - After the OpenShift cluster is successfully deployed, an additional post-installation script is provided to automatically:
-    - Create an OpenShift admin user
-    - Install and configure LVM on the cluster
+  - After the OpenShift cluster is successfully deployed, an additional create-admin-user script is provided to automatically create an OpenShift admin user
   - An optional cleanup script is also included to stop and delete all created virtual machines, allowing the environment to be reset and reused easily.
 
 - **For the IPI Installer Option:**
@@ -101,9 +99,9 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-I
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/assisted-installer-prep.sh
 ```
 
-**Step 5:** Run the post-installation configuration script
+**Step 5:** Run the create-admin-user script
 
-Once the OpenShift cluster is deployed and confirmed to be up and running, execute the post-installation configuration script. Before executing the post-installation script, some preparation are required. 
+Once the OpenShift cluster is deployed and confirmed to be up and running, execute the create-admin-user script. Before executing the create-admin-user script, some preparation are required. 
 
 ```bash
 mkdir -p ~/.kube
@@ -117,10 +115,10 @@ Copy kubeconfig content to the above created file
 chmod 600 ~/.kube/config
 ```
 
-Execute the post-installation configuration script
+Execute the create-admin-user script
 
 ```bash
-./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/post-install-config.sh
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/create-admin-user.sh
 ```
 
 **Step 6:** [Optional] - Clean up and delete deployed virtual machines
