@@ -100,7 +100,21 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/*
 
 **Step 5:** Run the post-installation configuration script
 
-Once the OpenShift cluster is deployed and confirmed to be up and running, execute the post-installation configuration script:
+Once the OpenShift cluster is deployed and confirmed to be up and running, execute the post-installation configuration script. Before executing the post-installation script, some preparation are required. 
+
+```bash
+mkdir -p ~/.kube
+chmod 700 ~/.kube
+vim ~/.kube/config
+```
+
+Copy kubeconfig content to the above created file
+
+```bash
+chmod 600 ~/.kube/config
+```
+
+Execute the post-installation configuration script
 
 ```bash
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/post-install-config.sh
