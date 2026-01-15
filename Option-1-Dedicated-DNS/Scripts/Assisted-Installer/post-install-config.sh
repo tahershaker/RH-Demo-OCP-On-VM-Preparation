@@ -179,7 +179,7 @@ CLUSTER_USER="$(oc whoami 2>/dev/null || true)"
 CLUSTER_API="$(oc whoami --show-server 2>/dev/null || true)"
 
 echo -e "${GREEN}   kubeconfig check is successful.${NC}"
-echo "   Connected as: ${CLUSTER_USER}"
+echo "   Connected as : ${CLUSTER_USER}"
 echo "   API Server   : ${CLUSTER_API}"
 echo ""
 
