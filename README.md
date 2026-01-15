@@ -100,7 +100,7 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-I
 
 **Step 5:** Run the create-admin-user script
 
-Once the OpenShift cluster is deployed and confirmed to be up and running, execute the create-admin-user script. Before executing the post-installation script, some preparation are required. 
+Once the OpenShift cluster is deployed and confirmed to be up and running, execute the create-admin-user script. Before executing the create-admin-user script, some preparation are required. 
 
 ```bash
 mkdir -p ~/.kube
