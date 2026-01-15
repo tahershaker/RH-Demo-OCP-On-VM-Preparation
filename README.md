@@ -10,52 +10,64 @@ If you are already familiar with this repository, you can proceed directly to th
 
 ## Repo Description
 
-This repository is dedicated to demo environment preparation. Its primary purpose is to provide all required step-by-step guides, scripts, Ansible playbooks and roles, configuration files, and supporting tools needed to automate repetitive tasks involved in building a demo lab on top of VMware infrastructure.
+This repository is dedicated to preparing demo and enablement lab environments for Red Hat OpenShift on top of VMware infrastructure. It provides step-by-step guides, scripts, Ansible playbooks and roles, configuration files, and supporting tools to automate the repetitive tasks required to build a functional OpenShift demo lab.
 
-The lab is prepared using a bastion host and is designed to support the deployment and management of Red Hat OpenShift for demo, enablement, and learning use cases. The focus is on creating a repeatable, consistent, and automation-driven environment that closely resembles real-world enterprise setups while remaining optimized for demonstrations rather than production workloads.
+The lab is prepared using a bastion host and is designed to support multiple OpenShift installation methods, while remaining repeatable, consistent, and easy to rebuild for demonstrations and learning purposes.
 
 ---
 
 ## Repo Content
 
-This repository helps automate the preparation of an existing VMware-based lab environment for deploying Red Hat OpenShift cluster(s). The prepared lab can be used to support multiple OpenShift installation methods and cluster architectures, making it suitable for demo, enablement, and learning scenarios.
+This repository automates the preparation of an existing VMware-based lab environment for deploying Red Hat OpenShift cluster(s). The prepared lab can support different OpenShift installation methods and cluster architectures - depending on how DNS is provided in the environment - making it suitable for demo, enablement, and learning scenarios.
 
-To provide additional context, this repository assumes the existence of a pre-installed and pre-configured VMware lab environment with the following components:
-- A vSphere virtual datacenter with a cluster configured and sufficient ESXi capacity to meet the compute requirements of the OpenShift cluster(s).
-- One or more datastores configured and attached to the ESXi hosts.
-- An NSX segment that provides DHCP services, enables internal connectivity between virtual machines, and allows outbound internet access.
-- A bastion host that provides SSH access to the internal lab network and is connected to the NSX segment.
-- External DNS configured using one of the following approaches:
-- Two DNS records (one for the OpenShift API and one for applications), NATed to internal IP addresses within the lab.
-- A single wildcard DNS record pointing to the bastion host.
+This repository assumes a pre-installed VMware lab environment with the following components:
+- A vSphere virtual datacenter with a cluster sized to meet the compute requirements of the OpenShift cluster(s).
+- One or more datastores attached to the ESXi hosts.
+- An NSX segment providing DHCP, internal VM connectivity, and outbound internet access.
+- A bastion host connected to the NSX segment and used as the automation and access point.
+- External DNS configured using one of the following two models.
+  - Two DNS records (one for the OpenShift API and one for applications), NATed to internal IP addresses within the lab.
+  - A single wildcard DNS record pointing to the bastion host.
 
-The repository supports two main preparation options, each aligned with a specific OpenShift installation method:
+This repository focuses on preparing the lab environment for Red Hat OpenShift deployment. While the goal is OpenShift installation, the content is structured based on the DNS options available in the lab environment, as DNS design directly impacts the required bastion host preparation, deployment workflow, and the number of OpenShift clusters that can be supported.
 
-**Assisted Installer Option**
+Accordingly, this repository provides two preparation options: a **Dedicated DNS Records option** and a **Wildcard DNS Record option**. Both Assisted Installer and IPI (Installer-Provisioned Infrastructure) can be used with either DNS option.
 
-- This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer via the Red Hat Hybrid Cloud Console. It supports deploying a single OpenShift cluster, either as a 3-node compact cluster or a 6-node standard cluster.
-- This option provides scripts that automate the installation, deployment, and configuration of required tools and resources to simplify the Assisted Installer workflow. The focus is on running automation from the bastion host, including installing required tools (such as govc) and automating repeatable tasks like virtual machine creation.
-- For more details, refer to the [corresponding section](/Option-1-Assisted-Installer/README.md) in this repository.
+**Dedicated DNS Records option**
 
-**IPI Installer Option**
+- This option prepares the lab environment for deploying a single Red Hat OpenShift cluster using dedicated DNS records for the OpenShift API and applications. It supports both Assisted Installer and IPI (Installer-Provisioned Infrastructure) installation methods.
+- This option provides scripts that automate the installation, deployment, and configuration of the required tools and resources to simplify the OpenShift cluster deployment workflow.
+- All automation tasks for this option are executed from the bastion host and focus on preparing the VMware environment by installing required tools (such as GOVC) and automating repeatable tasks such as virtual machine creation. The user must clone this Git repository on the bastion host and then execute the required automation tools.
+- This option supports deploying either a compact cluster (3 nodes acting as both control plane and workers) or a standard cluster with 3 control plane nodes and a configurable number of worker nodes. No DNS or HAProxy configuration is required on the bastion host.
+- For more details, refer to the [Dedicated DNS Option section](/Option-1-Dedicated-DNS/README.md) in this repository.
 
-- This option prepares the lab environment for deploying Red Hat OpenShift using the UBI-based installation method. It supports greater flexibility, including single or multiple OpenShift clusters, as well as compact or standard cluster architectures.
-- This option provides scripts to automate the installation, deployment, and configuration of required tools and infrastructure components. It focuses on using the bastion host as a central infrastructure node by installing required software packages (such as DNS and HAProxy), required tools (such as govc), and automating repeatable tasks like virtual machine creation.
-- For more details, refer to the [corresponding section](/Option-2-UBI-Installer/README.md) in this repository.
+**Wildcard DNS Record Option**
+
+- This option prepares the lab environment for deploying one or more Red Hat OpenShift clusters using a single wildcard DNS record pointing to the bastion host. It supports both Assisted Installer and IPI (Installer-Provisioned Infrastructure) installation methods and allows deploying compact or standard OpenShift cluster architectures.
+- This option provides scripts that automate the installation, deployment, and configuration of the required tools, resources and infrastructure components to simplify the OpenShift cluster(s) deployment workflow.
+- All automation tasks in this option are executed from the bastion host, which is prepared to act as a central infrastructure node. This includes installing and configuring required software packages such as DNS and HAProxy, installing required tools (such as GOVC), and automating repeatable tasks like virtual machine creation and cluster networking preparation. The user must clone this Git repository on the bastion host and then execute the required automation tools.
+- This option supports deploying either a compact cluster (3 nodes acting as both control plane and workers) or a standard cluster with 3 control plane nodes and a configurable number of worker nodes.
+- For more details, refer to the [Wildcard DNS Option section](/Option-2-Wildcard-DNS/README.md) in this repository.
 
 ---
 
 ## Step-By-Step Guide
 
-This section serves as the primary step-by-step guide for using this repository and preparing the demo lab environment. 
+This section provides the primary step-by-step instructions for using this repository to prepare the demo lab environment.
 
-> **Note:** This repository supports multiple deployment options and scenarios, with each subsection dedicated to a specific option or scenario.
+> **Note:** This repository supports multiple deployment options and scenarios. Each subsection below is dedicated to a specific DNS option and OpenShift installation method.
 
-### Option 1 - Assisted Installer Option
+### Option 1 - Dedicated DNS Records option
 
-1- Prepare the required info for the script to run 
+This option includes two deployment sub-options based on the OpenShift installation method: Assisted Installer and IPI. For an overview of this option, please refer to the [Dedicated DNS Records section](/Option-2-Wildcard-DNS/README.md)
 
-The script will ask the user for serverl info to be able to perofrm the required action. These info will be provided to the script as user inputs and the script will ask the user for each info one-by-one. Prepare these info to be able to use the provided script. Required info provided below
+#### Assisted Installer Option - With Dedicated DNS Records
+
+> This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with two dedicated DNS records—one for the OpenShift API and one for applications.
+
+**Step 1:** Prepare the required input information
+
+The script prompts the user for several inputs required to perform the necessary actions. These values are provided interactively, one by one. Prepare the following information before running the script:
 
 ```bash
 - vCenter URL:
@@ -68,34 +80,38 @@ The script will ask the user for serverl info to be able to perofrm the required
 - Assisted Installer ISO wget command:
 ```
 
-2- Clone the Git Repo
+**Step 2:** Clone the Git repository
 
 ```bash
 git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
 ```
 
-3- Change permissions for assisted-installer-prep.sh to be executable
+**Step 3:** Make the Assisted Installer scripts executable
 
 ```bash
 chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/*
 ```
 
-4- Run assisted installer preparation Script
+**Step 4:** Run the Assisted Installer preparation script
 
 ```bash
-./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/assisted-installer-prep.sh
 ```
 
-5- Run post installation configuration Script
+**Step 5:** Run the post-installation configuration script
+
+Once the OpenShift cluster is deployed and confirmed to be up and running, execute the post-installation configuration script:
 
 ```bash
-./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/post-install-config.sh
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/post-install-config.sh
 ```
 
-6- [Optional] - If you would like to start over and delete the deployed VM - Run the stop and delete vms script
+**Step 6:** [Optional] - Clean up and delete deployed virtual machines
+
+If you need to start over and remove the deployed virtual machines, run the cleanup script:
 
 ```bash
-./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/stop-delete-vms.sh
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/stop-delete-vms.sh
 ```
 
 ---
