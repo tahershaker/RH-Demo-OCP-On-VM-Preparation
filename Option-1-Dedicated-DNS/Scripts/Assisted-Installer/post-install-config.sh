@@ -216,18 +216,12 @@ echo ""
 #-------------------------------------------------------------
 # Post-Install Actions
 # - Install httpd-tools
-# - Create/Configure HTPasswd admin user
-# - Install/Configure LVM Storage
 #-------------------------------------------------------------
 
-echo -e "${YELLOW} Running Post-Install Actions${NC}"
-echo -e "${YELLOW} ----------------------------${NC}"
+echo -e "${YELLOW} Installing httpd-tools (htpasswd)...${NC}"
+echo -e "${YELLOW} ------------------------------------${NC}"
 echo ""
 
-#-------------------------
-# 1) Install httpd-tools
-#-------------------------
-echo -e "${CYAN} - Installing httpd-tools (htpasswd)${NC}"
 if command -v htpasswd >/dev/null 2>&1; then
   echo -e "${GREEN}   htpasswd already installed. Skipping.${NC}"
 else
@@ -239,10 +233,16 @@ echo ""
 echo " ================================================================================== "
 echo ""
 
-#-------------------------
-# 2) Create/Configure Admin User (HTPasswd)
-#-------------------------
-echo -e "${CYAN} - Creating/Updating admin user...${NC}"
+#===================================================================================
+
+#-------------------------------------------------------------
+# Post-Install Actions
+# - Create/Configure HTPasswd admin user
+#-------------------------------------------------------------
+
+echo -e "${YELLOW} Creating/Updating admin user...${NC}"
+echo -e "${YELLOW} -------------------------------${NC}"
+echo ""
 
 OCP_USERS_DIR="$HOME/ocp-users"
 HTPASS_FILE="${OCP_USERS_DIR}/users.htpasswd"
@@ -319,6 +319,113 @@ fi
 
 echo ""
 echo -e "${GREEN}   Admin user has been configured successfuly.${NC}"
+
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#-------------------------------------------------------------
+# Post-Install Actions
+# - Install/Configure LVM Storage
+#-------------------------------------------------------------
+
+echo -e "${YELLOW} Installing and configuring OpenShift LVM...${NC}"
+echo -e "${YELLOW} -------------------------------------------${NC}"
+echo ""
+
+echo "   Creating Namespace (if missing)..."
+oc get ns openshift-lvm-storage >/dev/null 2>&1 || oc create ns openshift-lvm-storage >/dev/null 2>&1
+echo "      Namespace ready - Namespace name: openshift-lvm-storage"
+
+echo "   Create/Update LVM Operator Group..."
+cat <<EOF | oc apply -f - >/dev/null
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: lvm-operator-group
+  namespace: openshift-lvm-storage
+spec:
+  targetNamespaces:
+  - openshift-lvm-storage
+EOF
+echo "      LVM Operator Group created/Updated."
+
+echo "   Checking the required channel..."
+# Detect OCP version and map to LVMS channel
+OCP_VER="$(oc version -o json | jq -r '.openshiftVersion' 2>/dev/null || true)"   # example: 4.20.4
+OCP_MM="$(echo "$OCP_VER" | awk -F. '{print $1"."$2}')"                           # example: 4.20
+LVMS_CHANNEL="stable-${OCP_MM}"                                                   # example: stable-4.20
+echo "      Detected channel is ${LVMS_CHANNEL}."
+
+echo "   Create/Update Subscription..."
+cat <<EOF | oc apply -f - >/dev/null
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: lvms-operator
+  namespace: openshift-lvm-storage
+spec:
+  channel: ${LVMS_CHANNEL}
+  name: lvms-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+EOF
+echo "      Subscription created/Updated."
+
+echo "   Waiting for LVM Operator to be installed (CSV Succeeded)..."
+if ! oc wait --for=jsonpath='{.status.phase}'=Succeeded csv --all -n openshift-lvm-storage --timeout=10m >/dev/null 2>&1; then
+  echo -e "${RED}   ERROR: LVM operator did not reach CSV=Succeeded within timeout.${NC}"
+  echo -e "${RED}   Debug:${NC}"
+  echo "     oc get subscription,installplan,csv -n openshift-lvm-storage"
+  echo "     oc describe subscription lvms-operator -n openshift-lvm-storage"
+  exit 1
+fi
+CSV_NAME="$(oc get csv -n openshift-lvm-storage -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+echo "      Operator installed successfully (CSV Succeeded): ${CSV_NAME}."
+
+echo "   Create/Update LVMCluster..."
+cat <<EOF | oc apply -f - >/dev/null
+apiVersion: lvm.topolvm.io/v1alpha1
+kind: LVMCluster
+metadata:
+  name: demo-lvmcluster
+  namespace: openshift-lvm-storage
+spec:
+  storage:
+    deviceClasses:
+    - name: vg1
+      default: true
+      fstype: xfs
+      thinPoolConfig:
+        name: thin-pool-1
+        sizePercent: 90
+        overprovisionRatio: 10
+EOF
+
+echo "   Waiting for LVMCluster to become Ready..."
+if ! oc wait --for=jsonpath='{.status.state}'=Ready lvmcluster/demo-lvmcluster -n openshift-lvm-storage --timeout=10m >/dev/null 2>&1; then
+  echo -e "${RED}   ERROR: LVMCluster did not become Ready within timeout.${NC}"
+  echo -e "${RED}   Debug:${NC}"
+  echo "     oc get lvmcluster -n openshift-lvm-storage -o wide"
+  echo "     oc describe lvmcluster demo-lvmcluster -n openshift-lvm-storage"
+  exit 1
+fi
+echo "      LVMCluster is Ready."
+
+echo ""
+echo "   Quick verification:"
+echo "   - Subscription / CSV:"
+oc get subscription,csv -n openshift-lvm-storage -o wide 2>/dev/null || true
+
+echo ""
+echo "   - StorageClasses (lvms):"
+oc get sc 2>/dev/null | grep -i lvms || true
+
+echo ""
+echo -e "${GREEN}   LVM Operator Installed and LVMCluster configured successfully.${NC}"
 
 echo ""
 echo " ================================================================================== "
