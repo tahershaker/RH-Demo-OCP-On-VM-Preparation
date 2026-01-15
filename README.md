@@ -65,12 +65,7 @@ The script will ask the user for serverl info to be able to perofrm the required
 - vSphere datastore name:
 - vSphere network name:
 - Required OpenShift release: 
-- OpenShift Cluster Type: 
--       1) 3-node compact cluster (masters also act as workers)
--       2) Standard cluster (3 masters + x worker nodes)
-- Required Node(s) HW Resources: - Script will provide defaults, user can change if required
 - Assisted Installer ISO wget command:
--       Example: wget -O discovery_image_xxx.iso 'https://api.openshift.com/api/assisted-images/.../full.iso'
 ```
 
 2- Clone the Git Repo
@@ -82,16 +77,26 @@ git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
 3- Change permissions for assisted-installer-prep.sh to be executable
 
 ```bash
-chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
+chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/*
 ```
 
-4- Run Script
+4- Run assisted installer preparation Script
 
 ```bash
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/assisted-installer-prep.sh
 ```
 
-> Please Note: Other Scripts are available for other activities. Please refer to the [Option-1-Assisted-Installer Section](/Option-1-Assisted-Installer/README.md) for more info
+5- Run post installation configuration Script
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/post-install-config.sh
+```
+
+6- [Optional] - If you would like to start over and delete the deployed VM - Run the stop and delete vms script
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Assisted-Installer/Scripts/stop-delete-vms.sh
+```
 
 ---
 
