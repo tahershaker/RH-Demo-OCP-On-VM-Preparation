@@ -189,6 +189,8 @@ while true; do
   API_VIP=$(read_non_empty "       Enter OpenShift API VIP IP (e.g. 192.168.x.x): ")
   APPS_VIP=$(read_non_empty "       Enter OpenShift APPs VIP IP (e.g. 192.168.x.x): ")
   OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
+  PULL_SECRET=$(read_non_empty "       Enter Red Hat Pull Secret: ")
+  SSH_KEY=$(read_non_empty "       Enter SSH Key: ")
   echo ""
 
   # Extract Object Path from user input
@@ -753,80 +755,172 @@ echo -e "${YELLOW} Preparing install-config.yaml For IPI${NC}"
 echo -e "${YELLOW} ------------------------------------${NC}"
 echo ""
 
-# 1) Define working directory (cluster name = LAB_ID)
-INSTALL_BASE_DIR="openshift-install-dir"
+# Expected repo location
+REPO_BASE_DIR="${HOME}/RH-Demo-OCP-On-VM-Preparation"
+
+# Template path inside repo
+INSTALL_CONFIG_TEMPLATE="${REPO_BASE_DIR}/Option-1-Dedicated-DNS/Files/IPI-Installer/install-config.yaml"
+
+# Working directory for OpenShift installer
+INSTALL_BASE_DIR="${HOME}/openshift-install-dir"
 CLUSTER_NAME="${LAB_ID}"
 INSTALL_DIR="${INSTALL_BASE_DIR}/${CLUSTER_NAME}"
 
-# 2) Template path (relative to where you run the script)
-INSTALL_CONFIG_TEMPLATE="RH-DEMO-OCP-ON-VM-PREPARATION/Option-1-Dedicated-DNS/Files/IPI-Installer/install-config/install-config.yaml"
+echo -e "${CYAN} Preparing OpenShift install-config working directory${NC}"
 
-echo "   Creating install directory: ${INSTALL_DIR}"
-mkdir -p "${INSTALL_DIR}"
-
-# 3) Validate template exists
-if [[ ! -f "${INSTALL_CONFIG_TEMPLATE}" ]]; then
-  echo -e "${RED} ERROR: install-config template not found at:${NC}"
-  echo -e "${RED} ${INSTALL_CONFIG_TEMPLATE}${NC}"
-  echo -e "${RED} Run the script from the correct location or fix the template path.${NC}"
+# 1) Validate repo exists
+echo "   Verifying repo exists in the expected path: ${REPO_BASE_DIR}"
+if [[ ! -d "${REPO_BASE_DIR}" ]]; then
+  echo -e "${RED} ERROR: Required Git repository not found.${NC}"
+  echo -e "${RED} Expected location: ${REPO_BASE_DIR}${NC}"
+  echo -e "${RED} Please clone the repository into your HOME directory and try again.${NC}"
   exit 1
 fi
+echo "      Verified. Proceeding..."
 
+# 2) Validate install-config template exists
+echo "   Verifying install-config template exists in the expected path: ${INSTALL_CONFIG_TEMPLATE}"
+if [[ ! -f "${INSTALL_CONFIG_TEMPLATE}" ]]; then
+  echo -e "${RED} ERROR: install-config.yaml template not found.${NC}"
+  echo -e "${RED} Expected path: ${INSTALL_CONFIG_TEMPLATE}${NC}"
+  echo -e "${RED} Please do not change the cloned repo structure. Please verify the repository structure and template location and try again.${NC}"
+  exit 1
+fi
+echo "      Verified. Proceeding..."
 
-# 5) Copy template into working dir (keep a backup copy too)
-echo "   Copying install-config template..."
-cp -f "${INSTALL_CONFIG_TEMPLATE}" "${INSTALL_DIR}/install-config.yaml"
-cp -f "${INSTALL_DIR}/install-config.yaml" "${INSTALL_DIR}/install-config.yaml.bak"
-echo "      Template copied to: ${INSTALL_DIR}/install-config.yaml"
+# 3) Create working directory
+echo "   Creating install directory: ${INSTALL_DIR}"
+if [[ -d "${INSTALL_DIR}" ]]; then
+  echo "      Install directory already exists. Proceeding..."
+else
+  mkdir -p "${INSTALL_DIR}"
+  echo "      Created. Proceeding..."
+fi
+
+# 4) Copy template to working directory
+echo "   Copying install-config.yaml template..."
+INSTALL_CONFIG_WORKING="${INSTALL_DIR}/install-config.yaml"
+if [[ -f "${INSTALL_CONFIG_WORKING}" ]]; then
+  TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
+  BACKUP_FILE="${INSTALL_DIR}/install-config.yaml-old-${TIMESTAMP}"
+  echo "      Existing install-config.yaml detected. Backing up current file..."
+  mv "${INSTALL_CONFIG_WORKING}" "${BACKUP_FILE}"
+  echo "      Backup completed. Backup file name is ${BACKUP_FILE}"
+fi
+cp "${INSTALL_CONFIG_TEMPLATE}" "${INSTALL_CONFIG_WORKING}"
+echo "      Install-config Copied. Working directory: ${INSTALL_CONFIG_WORKING}"
 
 # 6) Apply user inputs into install-config.yaml
 echo "   Updating install-config.yaml with provided inputs..."
 
 # cluster identity
-yq -i ".metadata.name = \"${CLUSTER_NAME}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".baseDomain = \"${LAB_MAIN_DOMAIN}\"" "${INSTALL_DIR}/install-config.yaml"
+yq -i ".metadata.name = \"${LAB_ID}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".baseDomain = \"${LAB_MAIN_DOMAIN}\"" "${INSTALL_CONFIG_WORKING}"
 
-# networking VIPs (for dedicated DNS env)
-yq -i ".platform.vsphere.apiVIP = \"${API_VIP}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.ingressVIP = \"${APPS_VIP}\"" "${INSTALL_DIR}/install-config.yaml"
+# VIPs (template uses arrays)
+yq -i ".platform.vsphere.apiVIPs[0] = \"${API_VIP}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.ingressVIPs[0] = \"${APPS_VIP}\"" "${INSTALL_CONFIG_WORKING}"
 
-# vSphere connectivity + inventory paths
-yq -i ".platform.vsphere.vcenter = \"${VCENTER_URL}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.username = \"${VCENTER_USERNAME}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.password = \"${VCENTER_PASSWORD}\"" "${INSTALL_DIR}/install-config.yaml"
+# vSphere failureDomain (server + topology paths/names)
+yq -i ".platform.vsphere.failureDomains[0].server = \"${VCENTER_URL}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.failureDomains[0].topology.datacenter = \"${VCENTER_DC_NAME}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.failureDomains[0].topology.computeCluster = \"${VCENTER_CLUSTER_PATH}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.failureDomains[0].topology.resourcePool = \"${VCENTER_RP_PATH}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.failureDomains[0].topology.folder = \"${VCENTER_VM_FOLDER_PATH}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.failureDomains[0].topology.datastore = \"${VCENTER_DS_PATH}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.failureDomains[0].topology.networks[0] = \"${VCENTER_NET_NAME}\"" "${INSTALL_CONFIG_WORKING}"
 
-yq -i ".platform.vsphere.datacenter = \"${VCENTER_DC_NAME}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.cluster = \"${VCENTER_CLUSTER_NAME}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.resourcePool = \"${VCENTER_RP_PATH}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.folder = \"${VCENTER_VM_FOLDER_PATH}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.datastore = \"${VCENTER_DS_NAME}\"" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".platform.vsphere.network = \"${VCENTER_NET_NAME}\"" "${INSTALL_DIR}/install-config.yaml"
+# vSphere vcenters (server + creds + datacenters list)
+yq -i ".platform.vsphere.vcenters[0].server = \"${VCENTER_URL}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.vcenters[0].user = \"${VCENTER_USERNAME}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.vcenters[0].password = \"${VCENTER_PASSWORD}\"" "${INSTALL_CONFIG_WORKING}"
+yq -i ".platform.vsphere.vcenters[0].datacenters[0] = \"${VCENTER_DC_NAME}\"" "${INSTALL_CONFIG_WORKING}"
 
 # replicas (compact vs standard)
+yq -i ".controlPlane.replicas = 3" "${INSTALL_CONFIG_WORKING}"
+
+# check cluster type and set the replicas for compute
 if [[ "${CLUSTER_MODE}" == "compact" ]]; then
-  yq -i ".controlPlane.replicas = 3" "${INSTALL_DIR}/install-config.yaml"
-  yq -i ".compute = []" "${INSTALL_DIR}/install-config.yaml"
+  yq -i ".compute[0].replicas = 0" "${INSTALL_CONFIG_WORKING}"
 else
-  yq -i ".controlPlane.replicas = 3" "${INSTALL_DIR}/install-config.yaml"
-  yq -i ".compute[0].replicas = ${WORKER_COUNT}" "${INSTALL_DIR}/install-config.yaml"
+  yq -i ".compute[0].replicas = ${WORKER_COUNT}" "${INSTALL_CONFIG_WORKING}"
 fi
 
-# sizing (controlPlane + compute)
-yq -i ".controlPlane.platform.vsphere.cpus = ${MASTER_CPU}" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".controlPlane.platform.vsphere.memoryMB = ${MASTER_RAM_GB} * 1024" "${INSTALL_DIR}/install-config.yaml"
-yq -i ".controlPlane.platform.vsphere.osDisk.diskSizeGB = ${MASTER_DISK_GB}" "${INSTALL_DIR}/install-config.yaml"
+# sizing (controlPlane)
+MASTER_RAM_MB_YQ=$((MASTER_RAM_GB * 1024))
+WORKER_RAM_MB_YQ=$((WORKER_RAM_GB * 1024))
+yq -i ".controlPlane.platform.vsphere.cpus = ${MASTER_CPU}" "${INSTALL_CONFIG_WORKING}"
+yq -i ".controlPlane.platform.vsphere.memoryMB = ${MASTER_RAM_MB_YQ}" "${INSTALL_CONFIG_WORKING}"
+yq -i ".controlPlane.platform.vsphere.osDisk.diskSizeGB = ${MASTER_DISK_GB}" "${INSTALL_CONFIG_WORKING}"
+yq -i ".compute[0].platform.vsphere.cpus = ${WORKER_CPU}" "${INSTALL_CONFIG_WORKING}"
+yq -i ".compute[0].platform.vsphere.memoryMB = ${WORKER_RAM_MB_YQ}" "${INSTALL_CONFIG_WORKING}"
+yq -i ".compute[0].platform.vsphere.osDisk.diskSizeGB = ${WORKER_DISK_GB}" "${INSTALL_CONFIG_WORKING}"
 
-if [[ "${CLUSTER_MODE}" != "compact" ]]; then
-  yq -i ".compute[0].platform.vsphere.cpus = ${WORKER_CPU}" "${INSTALL_DIR}/install-config.yaml"
-  yq -i ".compute[0].platform.vsphere.memoryMB = ${WORKER_RAM_GB} * 1024" "${INSTALL_DIR}/install-config.yaml"
-  yq -i ".compute[0].platform.vsphere.osDisk.diskSizeGB = ${WORKER_DISK_GB}" "${INSTALL_DIR}/install-config.yaml"
-fi
+# pull secret and ssh key
+export PULL_SECRET
+export SSH_KEY
+yq -i '.pullSecret = strenv(PULL_SECRET)' "${INSTALL_CONFIG_WORKING}"
+yq -i '.sshKey = strenv(SSH_KEY)' "${INSTALL_CONFIG_WORKING}"
+
+echo "      install-config.yaml updated successfully. Proceeding..."
+
+# take a backup of this file
+echo "   Taking a backup of the install-config yaml file."
+BACKUP_FILE="${INSTALL_DIR}/install-config.yaml.bak.$(date +%Y%m%d-%H%M%S)"
+cp "${INSTALL_DIR}/install-config.yaml" "${BACKUP_FILE}"
+echo "      Backup completed successfully. Proceeding..."
+echo ""
 
 echo -e "${GREEN}   install-config.yaml updated successfully.${NC}"
 echo "      Working file : ${INSTALL_DIR}/install-config.yaml"
-echo "      Backup file  : ${INSTALL_DIR}/install-config.yaml.bak"
+echo "      Backup file  : ${BACKUP_FILE}"
 
 #Print Separator
 echo ""
 echo " ================================================================================== "
 echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Print OpenShift Installer Command (Manual Execution)
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} OpenShift Cluster Creation Command${NC}"
+echo -e "${YELLOW} ----------------------------------${NC}"
+echo ""
+
+echo -e "${CYAN} All required tools have been installed and the install-config yaml file has been updated.${NC}"
+echo -e "${CYAN} This lab is now ready for cluster deployment.${NC}"
+echo -e "${CYAN} Use the following command to create the OpenShift cluster:${NC}"
+echo ""
+
+echo -e "${GREEN} ----------------------------------------------------- ${NC}"
+echo -e "${GREEN} openshift-install create cluster --dir ${INSTALL_DIR} ${NC}"
+echo -e "${GREEN} ----------------------------------------------------- ${NC}"
+echo ""
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#-------------------------------------------------------------
+# Print Script Completed
+#-------------------------------------------------------------
+
+echo ""
+echo -e "${RED}"
+echo "  --------------------------------------------------------------------------------  "
+echo " | =====================         Script Completed           ===================== | "
+echo " | =====================            * Enjoy *               ===================== | "
+echo "  --------------------------------------------------------------------------------  "
+echo " ================================================================================== "
+echo ""
+echo -e "${NC}"
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
