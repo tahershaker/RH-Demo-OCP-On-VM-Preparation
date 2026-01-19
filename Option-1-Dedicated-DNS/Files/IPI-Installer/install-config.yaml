@@ -1,0 +1,67 @@
+additionalTrustBundlePolicy: Proxyonly
+apiVersion: v1
+baseDomain: << -- Put Lab Based Domain -- >>
+metadata:
+  name: << -- Put Lab ID | Cluster Name -- >>
+compute:
+- architecture: amd64
+  hyperthreading: Enabled
+  name: worker
+  platform:
+    vsphere:
+      cpus: << -- Put Number of CPU For Worker Node -- >>
+      coresPerSocket: 2
+      memoryMB: << -- Put Number of RAM in MB For Worker Node -- >>
+      osDisk:
+        diskSizeGB: << -- Put Size of OS Disk For Worker Node -- >>
+  replicas: << -- Put Number of Worker Node(s) -- >>
+controlPlane:
+  architecture: amd64
+  hyperthreading: Enabled
+  name: master
+  platform: 
+    vsphere:
+      cpus: << -- Put Number of CPU For Master Node -- >>
+      coresPerSocket: 2
+      memoryMB: << -- Put Number of RAM in MB For Master Node -- >>
+      osDisk:
+        diskSizeGB: << -- Put Number of RAM in MB For Master Node -- >>
+  replicas: << -- Put Number of Master Node(s) -- >>
+networking:
+  clusterNetwork:
+  - cidr: 10.128.0.0/14
+    hostPrefix: 23
+  machineNetwork:
+  - cidr: 10.0.0.0/16
+  networkType: OVNKubernetes
+  serviceNetwork:
+  - 172.30.0.0/16
+platform:
+  vsphere:
+    apiVIPs:
+    - 192.168.38.201
+    ingressVIPs:
+    - 192.168.38.202
+    failureDomains:
+    - name: generated-failure-domain
+      region: generated-region
+      server:  << -- Put vCenter URL -- >>
+      topology:
+        datacenter: << -- Put vCenter DC Name eg:SDDC-Datacenter -- >>
+        computeCluster: << -- Put vCenter Cluster Path eg:/SDDC-Datacenter/host/Cluster-1 -- >>
+        resourcePool: << -- Put vCenter ResourcePool Path eg:/SDDC-Datacenter/host/Cluster-1/Resources -- >>
+        folder: << -- Put vCenter VM Folder Path eg:/SDDC-Datacenter/vm/Workloads/sandbox-nt92k -- >>
+        datastore: << -- Put vCenter DS Path eg:/SDDC-Datacenter/datastore/workload_share_yBaQN -- >>
+        networks:
+        - << -- Put vCenter Network Segment Name eg:segment-sandbox-nt92k -- >>
+      zone: generated-zone
+    vcenters:
+    - datacenters:
+      - << -- Put vCenter DC Name eg:SDDC-Datacenter -- >>
+      server: << -- Put vCenter URL -- >>
+      user: << -- Put vCenter User Name -- >>
+      password: << -- Put vCenter Password -- >>
+      port: 443
+publish: External
+pullSecret: '<< -- Put Your Red Hat Pull Secret -- >>'
+sshKey: '<< -- Put SSH Key -- >>'

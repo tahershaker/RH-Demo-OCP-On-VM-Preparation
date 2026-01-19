@@ -821,13 +821,18 @@ echo ""
 # Check and Install govc
 #----------------------------------------------------------------------------------
 
-echo -e "${YELLOW} Insallting GOVC CLI${NC}"
+echo -e "${YELLOW} Installing GOVC CLI${NC}"
 echo -e "${YELLOW} -------------------${NC}"
 
 if command -v govc >/dev/null 2>&1; then
   echo -e "${GREEN} GOVC is already installed. Skipping.${NC}"
 else
-  curl -sL -o - "https://github.com/vmware/govmomi/releases/latest/download/govc_$(uname -s)_$(uname -m).tar.gz" | sudo tar -C /usr/local/bin -xvzf - govc
+  if ! curl -sL "https://github.com/vmware/govmomi/releases/latest/download/govc_$(uname -s)_$(uname -m).tar.gz" | sudo tar -xz -C /usr/local/bin govc; then
+    echo -e "${RED} ERROR: Failed to download or install GOVC CLI.${NC}"
+    echo -e "${RED} Check network access, permissions, and system architecture.${NC}"
+    echo -e "${RED} Please check issue and try again."
+    exit 1
+  fi
 
   echo -e "${GREEN} GOVC installed successfully.${NC}"
 fi
@@ -845,26 +850,26 @@ echo ""
 
 echo -e "${YELLOW} Installing OpenShift oc CLI${NC}"
 echo -e "${YELLOW} ---------------------------${NC}"
+echo ""
 
 if command -v oc >/dev/null 2>&1; then
   echo -e "${GREEN} oc CLI is already installed. Skipping.${NC}"
 else
-  TMP_DIR="$(mktemp -d)"
-  OC_TAR="openshift-client-linux.tar.gz"
-  OC_URL="https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OCP_RELEASE}/${OC_TAR}"
+  echo -e "${CYAN} Downloading and installing oc CLI (OpenShift ${OCP_RELEASE})...${NC}"
 
-  echo -e "${CYAN} Downloading oc CLI...${NC}"
-  wget -q -O "${TMP_DIR}/${OC_TAR}" "$OC_URL"
+  if ! curl -sL "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OCP_RELEASE}/openshift-client-linux.tar.gz" | sudo tar -xz -C /usr/local/bin oc kubectl; then
+    echo ""
+    echo -e "${RED} ERROR: Failed to download or install oc CLI.${NC}"
+    echo -e "${RED} Possible causes:${NC}"
+    echo -e "${RED}  - Invalid OpenShift release version (${OCP_RELEASE})${NC}"
+    echo -e "${RED}  - Network / proxy / firewall issue${NC}"
+    echo -e "${RED}  - Insufficient permissions to write to /usr/local/bin${NC}"
+    echo -e "${RED}  Please check issue and try again."
+    echo ""
+    exit 1
+  fi
 
-  echo -e "${CYAN} Extracting oc and kubectl...${NC}"
-  tar -xzf "${TMP_DIR}/${OC_TAR}" -C "$TMP_DIR"
-
-  echo -e "${CYAN} Installing binaries to /usr/local/bin...${NC}"
-  sudo mv "${TMP_DIR}/oc" "${TMP_DIR}/kubectl" /usr/local/bin/
   sudo chmod +x /usr/local/bin/oc /usr/local/bin/kubectl
-
-  rm -rf "$TMP_DIR"
-
   echo -e "${GREEN} oc CLI installed successfully.${NC}"
 fi
 
@@ -872,6 +877,7 @@ fi
 echo ""
 echo " ================================================================================== "
 echo ""
+
 
 #===================================================================================
 

@@ -130,3 +130,23 @@ If you need to start over and remove the deployed virtual machines, run the clea
 
 ---
 
+
+
+IPI
+
+- Download and Install OpenShift Installer
+https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-linux.tar.gz
+curl -LO https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-linux.tar.gz \
+&& tar -xvf openshift-install-linux.tar.gz \
+&& chmod +x openshift-install \
+&& sudo mv openshift-install /usr/local/bin/
+
+curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-linux.tar.gz | sudo tar -C /usr/local/bin -xvzf - openshift-install
+
+- Edit the yaml file and copy it to the directoy
+
+- create cluster 
+openshift-install create cluster --dir ~/ocp-install/ --log-level=info
+
+- delete cluster
+openshift-install destroy cluster --dir ~/ocp-install/ --log-level=info
