@@ -17,29 +17,7 @@ trap 'rc=$?; echo "\n ---- ERROR: line ${LINENO}: ${BASH_COMMAND}" >&2; exit $rc
 #-------------------------------------------------------------
 
 ################################################################################
-# This script performs post-install configuration tasks for an OpenShift cluster
-# deployed using the Assisted Installer.
-#
-# It is intended to be executed after the cluster installation is completed and
-# the kubeconfig file is available on the bastion host.
-#
-# The script helps bootstrap initial cluster access and storage configuration by
-# automating common Day-1 administrative tasks, including:
-#
-# - Verifying the presence and validity of the kubeconfig file
-# - Validating cluster connectivity using the oc CLI
-# - Creating a local admin user using the HTPasswd identity provider
-# - Configuring OpenShift OAuth to use the HTPasswd provider
-# - Granting cluster-admin privileges to the newly created admin user
-#
-# All required inputs (such as admin password and kubeconfig location) are
-# explicitly requested from the user and validated before execution.
-#
-# This script is designed to be safe to re-run where possible and provides clear
-# status output for each step.
-#
-# The script does NOT modify cluster installation settings or infrastructure
-# components, and focuses only on post-install access and storage enablement.
+
 ################################################################################
 
 #===================================================================================
@@ -107,7 +85,7 @@ confirm_yn() {
 echo -e "${RED}"
 echo "  ---------------------------------------------------------  "
 echo " | =========  Dedicated DNS Records Environment  ========= | "
-echo " | =========       Assisted Installer Prep       ========= | "
+echo " | =========          IPI Installer Prep         ========= | "
 echo " | ------------------------------------------------------- | "
 echo " |         Post-Install-Config | Create admin user         | "
 echo " |        This script will create an OCP admin user        | "
@@ -130,56 +108,71 @@ echo -e "${YELLOW} Collect & Confirm Admin User Inputs${NC}"
 echo -e "${YELLOW} -----------------------------------${NC}"
 echo ""
 
-# 1) Confirm kubeconfig placement (we do NOT ask for path)
-echo -e "${CYAN} - kubeconfig Prerequisites${NC}"
-echo "   You must have already done the following as the current (non-root) user:"
-echo "   - mkdir -p ~/.kube"
-echo "   - chmod 700 ~/.kube"
-echo "   - Copy kubeconfig content to ~/.kube/config"
-echo "   - chmod 600 ~/.kube/config"
+# Check user executed the ecport command to set the KUBECONFIG
+echo -e "${CYAN} - kubeconfig export prerequisite (manual)${NC}"
+echo -e "${GREY}   You must run the export command shown by the installer in THIS terminal session.${NC}"
+echo -e "${GREY}   Example:${NC}"
+echo -e "${GREEN}   export KUBECONFIG=/home/lab-user/openshift-install-dir/2x9pq/auth/kubeconfig${NC}"
 echo ""
 
-if ! confirm_yn "   Did you place kubeconfig in ~/.kube/config with correct permissions? (Y/N): "; then
-  echo -e "${RED}   kubeconfig is required. Please complete the kubeconfig steps then re-run.${NC}"
+if ! confirm_yn "   Did you run the export KUBECONFIG command in this same terminal session? (Y/N): "; then
+  echo ""
+  echo -e "${RED}   Please run the export command first, then re-run this script from the SAME terminal session.${NC}"
+  echo -e "${RED}   Example:${NC}"
+  echo -e "${GREEN}   export KUBECONFIG=/home/lab-user/openshift-install-dir/<cluster>/auth/kubeconfig${NC}"
+  echo ""
   exit 1
 fi
 
-# Verify kubeconfig exists + permissions + oc can talk to cluster
+# Check env var exists
+echo -e "${CYAN}   Verifying KUBECONFIG is set...${NC}"
+if [[ -z "${KUBECONFIG:-}" ]]; then
+  echo -e "${RED}   ERROR: KUBECONFIG is not set in this terminal session.${NC}"
+  echo -e "${RED}   Run the export command, then re-run this script.${NC}"
+  exit 1
+fi
+
+echo "      Verified. Proceeding..."
 echo ""
-echo -e "${CYAN}   Verifying kubeconfig...${NC}"
 
-if [[ ! -f "$HOME/.kube/config" ]]; then
-  echo -e "${RED}   ERROR: kubeconfig not found at: $HOME/.kube/config${NC}"
+# Check kubeconfig file exists
+echo -e "${CYAN}   Verifying kubeconfig file exists...${NC}"
+if [[ ! -f "${KUBECONFIG}" ]]; then
+  echo -e "${RED}   ERROR: kubeconfig file not found at:${NC}"
+  echo -e "${RED}   ${KUBECONFIG}${NC}"
+  echo -e "${RED}   Make sure the path is correct and IPI installation completed then re-run this script.${NC}"
   exit 1
 fi
 
-# Optional: permission checks (best-effort, don’t break if stat differs)
-KCFG_PERM="$(stat -c '%a' "$HOME/.kube/config" 2>/dev/null || stat -f '%Lp' "$HOME/.kube/config" 2>/dev/null || echo "unknown")"
-
-if [[ "$KCFG_PERM" != "unknown" && "$KCFG_PERM" != "600" ]]; then
-  echo -e "${YELLOW}   WARN: ~/.kube/config permissions are $KCFG_PERM (expected 600).${NC}"
-  echo -e "${RED}   Please complete the kubeconfig steps then re-run.${NC}"
-  exit 1
-fi
+echo "      Verified. Proceeding..."
+echo ""
 
 # Ensure oc exists
+echo -e "${CYAN}   Verifying oc CLi is installed...${NC}"
 if ! command -v oc >/dev/null 2>&1; then
   echo -e "${RED}   ERROR: oc CLI is not installed or not in PATH.${NC}"
-  echo -e "${RED}   Please install oc first (it should exist from the prep script).${NC}"
+  echo -e "${RED}   Please install oc first (it should exist from the prep script) then re-run this script.${NC}"
   exit 1
 fi
 
-# Quick cluster connectivity check
+echo "      Verified. Proceeding..."
+echo ""
+
+# Connectivity check
+echo -e "${CYAN}   Verifying cluster connectivity...${NC}"
 if ! oc whoami >/dev/null 2>&1; then
-  echo -e "${RED}   ERROR: oc cannot authenticate using ~/.kube/config.${NC}"
-  echo -e "${RED}   Please verify kubeconfig content and access, then re-run.${NC}"
+  echo -e "${RED}   ERROR: oc cannot authenticate using KUBECONFIG=${KUBECONFIG}${NC}"
+  echo -e "${RED}   Re-run the export command and try again.${NC}"
   exit 1
 fi
+
+echo "      Verified. Proceeding..."
+echo ""
 
 CLUSTER_USER="$(oc whoami 2>/dev/null || true)"
 CLUSTER_API="$(oc whoami --show-server 2>/dev/null || true)"
 
-echo -e "${GREEN}   kubeconfig check is successful.${NC}"
+echo -e "${GREEN}   kubeconfig and access check is successful.${NC}"
 echo "   Connected as : ${CLUSTER_USER}"
 echo "   API Server   : ${CLUSTER_API}"
 echo ""

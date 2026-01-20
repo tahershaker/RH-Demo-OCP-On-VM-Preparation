@@ -64,7 +64,24 @@ NC='\033[0m'   # Reset / No Color
 # Reset variables (script + GOVC env) for safe re-runs
 #-------------------------------------------------------------
 
+# Unset GOVC environment variables (avoid stale sessions)
+unset GOVC_URL GOVC_USERNAME GOVC_PASSWORD GOVC_INSECURE GOVC_DATACENTER
 
+# Unset script variables (avoid stale values if sourced or reused)
+unset VCENTER_URL VCENTER_USERNAME VCENTER_PASSWORD
+unset VCENTER_DC_NAME VCENTER_CLUSTER_NAME VCENTER_VM_FOLDER_NAME VCENTER_DS_NAME VCENTER_NET_NAME
+unset VCENTER_DC_PATH VCENTER_CLUSTER_PATH VCENTER_VM_FOLDER_PATH VCENTER_DS_PATH VCENTER_NET_PATH
+unset VCENTER_RP_NAME VCENTER_RP_PATH
+unset LAB_MAIN_DOMAIN LAB_ID API_VIP APPS_VIP OCP_RELEASE
+unset PULL_SECRET SSH_KEY
+unset CLUSTER_MODE CLUSTER_TYPE MASTER_COUNT WORKER_COUNT
+unset MASTER_CPU MASTER_RAM_GB MASTER_DISK_GB WORKER_CPU WORKER_RAM_GB WORKER_DISK_GB
+unset CPU_MIN CPU_MAX RAM_MIN RAM_MAX DISK_MIN DISK_MAX
+unset M_CPU_MIN M_CPU_MAX M_RAM_MIN M_RAM_MAX M_DISK_MIN M_DISK_MAX
+unset W_CPU_MIN W_CPU_MAX W_RAM_MIN W_RAM_MAX W_DISK_MIN W_DISK_MAX
+unset REPO_BASE_DIR INSTALL_CONFIG_TEMPLATE INSTALL_BASE_DIR CLUSTER_NAME INSTALL_DIR INSTALL_CONFIG_WORKING
+unset MASTER_RAM_MB_YQ WORKER_RAM_MB_YQ
+unset BACKUP_FILE TIMESTAMP
 
 #===================================================================================
 
@@ -959,6 +976,86 @@ echo ""
 echo -e "${GREEN}   install-config.yaml updated successfully.${NC}"
 echo "      Working file : ${INSTALL_DIR}/install-config.yaml"
 echo "      Backup file  : ${BACKUP_FILE}"
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Dump All Script Variables To File (for reference)
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Dumping all script variables and info into an output file...${NC}"
+echo -e "${YELLOW} ------------------------------------------------------------${NC}"
+echo ""
+
+SCRIPT_OUTPUT_FILE="$HOME/script-output-ipi.txt"
+
+{
+  echo "---- vCenter / Lab ----"
+  echo "VCENTER_URL=$VCENTER_URL"
+  echo "VCENTER_USERNAME=$VCENTER_USERNAME"
+  echo "VCENTER_PASSWORD=$VCENTER_PASSWORD"
+  echo "VCENTER_DC_NAME=$VCENTER_DC_NAME"
+  echo "VCENTER_CLUSTER_NAME=$VCENTER_CLUSTER_NAME"
+  echo "VCENTER_VM_FOLDER_NAME=$VCENTER_VM_FOLDER_NAME"
+  echo "VCENTER_DS_NAME=$VCENTER_DS_NAME"
+  echo "VCENTER_NET_NAME=$VCENTER_NET_NAME"
+  echo "LAB_MAIN_DOMAIN=$LAB_MAIN_DOMAIN"
+  echo "LAB_ID=$LAB_ID"
+  echo "API_VIP=$API_VIP"
+  echo "APPS_VIP=$APPS_VIP"
+  echo "OCP_RELEASE=$OCP_RELEASE"
+  echo ""
+
+  echo "---- Derived vSphere Paths ----"
+  echo "VCENTER_DC_PATH=$VCENTER_DC_PATH"
+  echo "VCENTER_CLUSTER_PATH=$VCENTER_CLUSTER_PATH"
+  echo "VCENTER_RP_NAME=$VCENTER_RP_NAME"
+  echo "VCENTER_RP_PATH=$VCENTER_RP_PATH"
+  echo "VCENTER_VM_FOLDER_PATH=$VCENTER_VM_FOLDER_PATH"
+  echo "VCENTER_DS_PATH=$VCENTER_DS_PATH"
+  echo "VCENTER_NET_PATH=$VCENTER_NET_PATH"
+  echo ""
+
+  echo "---- Cluster Topology ----"
+  echo "CLUSTER_TYPE=$CLUSTER_TYPE"
+  echo "CLUSTER_MODE=$CLUSTER_MODE"
+  echo "MASTER_COUNT=$MASTER_COUNT"
+  echo "WORKER_COUNT=$WORKER_COUNT"
+  echo ""
+
+  echo "---- VM Sizing ----"
+  echo "MASTER_CPU=$MASTER_CPU"
+  echo "MASTER_RAM_GB=$MASTER_RAM_GB"
+  echo "MASTER_DISK_GB=$MASTER_DISK_GB"
+  echo "WORKER_CPU=$WORKER_CPU"
+  echo "WORKER_RAM_GB=$WORKER_RAM_GB"
+  echo "WORKER_DISK_GB=$WORKER_DISK_GB"
+  echo ""
+
+  echo "---- install-config working paths ----"
+  echo "REPO_BASE_DIR=${REPO_BASE_DIR:-}"
+  echo "INSTALL_CONFIG_TEMPLATE=${INSTALL_CONFIG_TEMPLATE:-}"
+  echo "INSTALL_BASE_DIR=${INSTALL_BASE_DIR:-}"
+  echo "CLUSTER_NAME=${CLUSTER_NAME:-}"
+  echo "INSTALL_DIR=${INSTALL_DIR:-}"
+  echo "INSTALL_CONFIG_WORKING=${INSTALL_CONFIG_WORKING:-}"
+  echo ""
+
+  echo "---- Credentials (Plain Text) ----"
+  echo "PULL_SECRET=$PULL_SECRET"
+  echo "SSH_KEY=$SSH_KEY"
+  echo ""
+
+  echo "=================================================================================="
+  echo ""
+} > "$SCRIPT_OUTPUT_FILE"
+
+echo -e "${GREEN} Script variables dumped to: $SCRIPT_OUTPUT_FILE${NC}"
 
 #Print Separator
 echo ""
