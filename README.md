@@ -5,6 +5,13 @@ A repository providing automation tools (scripts, Ansible, and related assets) t
 ---
 
 If you are already familiar with this repository, you can proceed directly to the [Step-By-Step-Guide](#step-by-step-guide) section
+  - Also, you can go directly to the required options:
+    - [Option 1 - Dedicated DNS Records option](#option-1---dedicated-dns-records-option)
+      - [[1] Assisted Installer Option - With Dedicated DNS Records](#1-assisted-installer-option---with-dedicated-dns-records)
+      - [[2] IPI Installer Option - With Dedicated DNS Records](#1-ipi-installer-option---with-wildcard-dns-records)
+    - [Option 2 - Wildcard DNS Records option](#option-2---wildcard-dns-records-option)
+      - [[1] Assisted Installer Option - With Wildcard DNS Records](#1-assisted-installer-option---with-wildcard-dns-records)
+      - [[2] IPI Installer Option - With Wildcard DNS Records](#2-ipi-installer-option---with-dedicated-dns-records)
 
 ---
 
@@ -60,6 +67,8 @@ This section provides the primary step-by-step instructions for using this repos
 ### Option 1 - Dedicated DNS Records option
 
 This option includes two deployment sub-options based on the OpenShift installation method: Assisted Installer and IPI. For an overview of this option, please refer to the [Dedicated DNS Records section](/Option-2-Wildcard-DNS/README.md)
+
+---
 
 #### [1] Assisted Installer Option - With Dedicated DNS Records
 
@@ -147,11 +156,11 @@ The script prompts the user for several inputs required to perform the necessary
 - vCenter VM folder Name: 
 - vCenter Datastore name:
 - vCenter Network name:
-- Required OpenShift release: 
 - OpenShift API VIP IP:
 - OpenShift Apps VIP IP:
 - Lab Main Domain:
 - Lab ID:
+- Required OpenShift release: 
 - Red Hat Pull Secret:
 - User SSH Key:
 ```
@@ -187,5 +196,25 @@ Execute the create-admin-user script
 ```bash
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/create-admin-user.sh
 ```
+
+---
+
+### Option 2 - Wildcard DNS Records option
+
+TBC
+
+#### [1] Assisted Installer Option - With Wildcard DNS Records
+
+> This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with a wildcard DNS records pointing to the Bastion host (which is acting as the infrastructure DNS and Load balancer)
+
+TBC
+
+---
+
+#### [1] IPI Installer Option - With Wildcard DNS Records
+
+> This option prepares the lab environment for deploying Red Hat OpenShift using the IPI Installer with a wildcard DNS records pointing to the Bastion host (which is acting as the infrastructure DNS and Load balancer)
+
+TBC
 
 ---

@@ -5,6 +5,9 @@ This section documents the preparation of a Red Hat OpenShift demo lab on VMware
 ---
 
 If you are already familiar with this repository, you can proceed directly to the [Step-By-Step-Guide](#section-dedicated-step-by-step-guide) section
+- Also, you can go directly to the required options:
+  - [[1] Assisted Installer Option - With Dedicated DNS Records](#1-assisted-installer-option---with-dedicated-dns-records)
+  - [[2] IPI Installer Option - With Dedicated DNS Records](#2-ipi-installer-option---with-dedicated-dns-records)
 
 ---
 
@@ -62,9 +65,9 @@ This section provides the primary step-by-step instructions for using this repos
 
 This option includes two deployment sub-options based on the OpenShift installation method: Assisted Installer and IPI. For an overview of this option, please refer to the [Dedicated DNS Records section](/Option-2-Wildcard-DNS/README.md)
 
-### Assisted Installer Option
+### [1] Assisted Installer Option - With Dedicated DNS Records
 
-> This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with two dedicated DNS records—one for the OpenShift API and one for applications.
+> This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with two dedicated DNS records — one for the OpenShift API and one for applications.
 
 **Step 1:** Prepare the required input information
 
@@ -99,7 +102,7 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-I
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/assisted-installer-prep.sh
 ```
 
-**Step 5:** Run the create-admin-user script
+**Step 5:** [Optional] Run the create-admin-user script
 
 Once the OpenShift cluster is deployed and confirmed to be up and running, execute the create-admin-user script. Before executing the create-admin-user script, some preparation are required. 
 
@@ -131,6 +134,62 @@ If you need to start over and remove the deployed virtual machines, run the clea
 
 ---
 
-### IPI Installer Option
+### [2] IPI Installer Option - With Dedicated DNS Records
 
-TBC
+> This option prepares the lab environment for deploying Red Hat OpenShift using the IPI Installer with two dedicated DNS records — one for the OpenShift API and one for applications.
+
+**Step 1:** Prepare the required input information
+
+The script prompts the user for several inputs required to perform the necessary actions. These values are provided interactively, one by one. Prepare the following information before running the script:
+
+```bash
+- vCenter URL:
+- vCenter username:
+- vCenter password:
+- vCenter Datacenter Name:
+- vCenter Cluster Name:
+- vCenter VM folder Name: 
+- vCenter Datastore name:
+- vCenter Network name:
+- OpenShift API VIP IP:
+- OpenShift Apps VIP IP:
+- Lab Main Domain:
+- Lab ID:
+- Required OpenShift release: 
+- Red Hat Pull Secret:
+- User SSH Key:
+```
+
+**Step 2:** Clone the Git repository - Please Note: The repository must be cloned into the user’s home directory. The scripts rely on this specific path and will not work if the repository is located elsewhere.
+
+```bash
+git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
+```
+
+**Step 3:** Make the IPI Installer scripts executable
+
+```bash
+chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/*
+```
+
+**Step 4:** Run the IPI Installer preparation script
+
+This script updates the `install-config` template based on the supplied information. After completion, the user is required to manually run the `openshift-install create` command to start the OpenShift cluster deployment. The script will output the exact command to use.
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/ipi-installer-prep.sh
+```
+
+Once the script completes, it will output the exact `openshift-install create` command required to deploy the OpenShift cluster. Copy and past the provided command in the terminal to start the OpenShift cluster deployment.
+
+**Step 5:** [Optional] Run the create-admin-user script 
+
+Once the IPI script completes, it outputs the `export KUBECONFIG` command required to access the cluster. The user must execute this command before running the next script.
+
+Execute the create-admin-user script
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/create-admin-user.sh
+```
+
+---
