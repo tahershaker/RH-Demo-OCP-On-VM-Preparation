@@ -61,7 +61,7 @@ This section provides the primary step-by-step instructions for using this repos
 
 This option includes two deployment sub-options based on the OpenShift installation method: Assisted Installer and IPI. For an overview of this option, please refer to the [Dedicated DNS Records section](/Option-2-Wildcard-DNS/README.md)
 
-#### Assisted Installer Option - With Dedicated DNS Records
+#### [1] Assisted Installer Option - With Dedicated DNS Records
 
 > This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with two dedicated DNS records — one for the OpenShift API and one for applications.
 
@@ -130,7 +130,7 @@ If you need to start over and remove the deployed virtual machines, run the clea
 
 ---
 
-#### IPI Installer Option - With Dedicated DNS Records
+#### [2] IPI Installer Option - With Dedicated DNS Records
 
 > This option prepares the lab environment for deploying Red Hat OpenShift using the IPI Installer with two dedicated DNS records — one for the OpenShift API and one for applications.
 
