@@ -148,6 +148,8 @@ The script prompts the user for several inputs required to perform the necessary
 - vCenter Datastore name:
 - vCenter Network name:
 - Required OpenShift release: 
+- OpenShift API VIP IP:
+- OpenShift Apps VIP IP:
 - Lab Main Domain:
 - Lab ID:
 - Red Hat Pull Secret:
