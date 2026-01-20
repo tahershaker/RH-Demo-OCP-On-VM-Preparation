@@ -40,7 +40,11 @@ In this model, the bastion host is used strictly as an automation and access nod
   - An optional cleanup script is also included to stop and delete all created virtual machines, allowing the environment to be reset and reused easily.
 
 - **For the IPI Installer Option:**
-  - To Be Determined 
+  - A dedicated interactive Bash script is used to collect environment-specific inputs from the user and then automate the full preparation process. Based on the provided inputs, the automation performs the following actions:
+    - Installs the required tools on the bastion host (for example: openshift-installer) 
+    - Update an existing install-config template with the user provided info
+    - Print the openshift-install create command for the user to execute manually
+  - After the OpenShift cluster is successfully deployed, an additional create-admin-user script is provided to automatically create an OpenShift admin user
 
 ---
 
