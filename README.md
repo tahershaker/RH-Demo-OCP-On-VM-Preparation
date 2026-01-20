@@ -98,7 +98,7 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-I
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/Assisted-Installer/assisted-installer-prep.sh
 ```
 
-**Step 5:** Run the create-admin-user script
+**Step 5:** [Optional] Run the create-admin-user script
 
 Once the OpenShift cluster is deployed and confirmed to be up and running, execute the create-admin-user script. Before executing the create-admin-user script, some preparation are required. 
 
@@ -170,8 +170,22 @@ chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Instal
 
 **Step 4:** Run the IPI Installer preparation script
 
+This script updates the `install-config` template based on the supplied information. After completion, the user is required to manually run the `openshift-install create` command to start the OpenShift cluster deployment. The script will output the exact command to use.
+
 ```bash
 ./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/ipi-installer-prep.sh
+```
+
+Once the script completes, it will output the exact `openshift-install create` command required to deploy the OpenShift cluster. Copy and past the provided command in the terminal to start the OpenShift cluster deployment.
+
+**Step 5:** [Optional] Run the create-admin-user script 
+
+Once the IPI script completes, it outputs the `export KUBECONFIG` command required to access the cluster. The user must execute this command before running the next script.
+
+Execute the create-admin-user script
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/create-admin-user.sh
 ```
 
 ---
