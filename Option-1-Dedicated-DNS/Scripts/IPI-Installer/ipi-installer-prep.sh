@@ -242,6 +242,7 @@ while true; do
   APPS_VIP=$(read_non_empty "       Enter OpenShift APPs VIP IP (e.g. 192.168.x.x): ")
   OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
   PULL_SECRET="$(read_json "       Enter Red Hat Pull Secret (JSON)")"
+  echo ""
   SSH_KEY=$(read_ssh_key "       Enter SSH Key: ")
   echo ""
 
@@ -686,6 +687,7 @@ echo -e "${YELLOW} -------------------${NC}"
 if command -v yq >/dev/null 2>&1; then
   echo -e "${GREEN} yq is already installed. Skipping.${NC}"
 else
+  echo -e "${CYAN} Downloading and installing yq...${NC}"
   if ! sudo curl -sL \
       "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64" -o /usr/local/bin/yq; then
     echo -e "${RED} ERROR: Failed to download yq binary.${NC}"
@@ -735,6 +737,11 @@ else
   sudo chmod +x /usr/local/bin/openshift-install
   echo -e "${GREEN} openshift-install installation activity completed. Proceeding...${NC}"
 fi
+
+#Print Separator
+echo ""
+echo " ================================================================================== "
+echo ""
 
 #===================================================================================
 
@@ -857,7 +864,7 @@ fi
 echo "      Verified. Proceeding..."
 
 # 2) Validate install-config template exists
-echo "   Verifying install-config template exists in the expected path: ${INSTALL_CONFIG_TEMPLATE}"
+echo "   Verifying install-config template exists in the expected path: ~/<repo-path>/Option-1-Dedicated-DNS/Files/IPI-Installer/install-config.yaml"
 if [[ ! -f "${INSTALL_CONFIG_TEMPLATE}" ]]; then
   echo -e "${RED} ERROR: install-config.yaml template not found.${NC}"
   echo -e "${RED} Expected path: ${INSTALL_CONFIG_TEMPLATE}${NC}"
