@@ -650,13 +650,39 @@ else
     exit 1
   fi
 
-  echo -e "${GREEN} yq installed successfully.${NC}"
+  echo -e "${GREEN} yq installed successfully. Proceeding...${NC}"
 fi
 
 #Print Separator
 echo ""
 echo " ================================================================================== "
 echo ""
+
+#===================================================================================
+
+#----------------------------------------------------------------------------------
+# Check and Install Openshift-Installer
+#----------------------------------------------------------------------------------
+
+echo -e "${YELLOW} Installing OpenShift Installer (openshift-install)${NC}"
+echo -e "${YELLOW} --------------------------------------------------${NC}"
+echo ""
+
+if command -v openshift-install >/dev/null 2>&1; then
+  echo -e "${GREEN} openshift-install is already installed. Skipping.${NC}"
+else
+  echo -e "${CYAN} Downloading and installing openshift-install (OpenShift ${OCP_RELEASE})...${NC}"
+  if ! curl -sL "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OCP_RELEASE}/openshift-install-linux.tar.gz" | sudo tar -xz -C /usr/local/bin openshift-install; then
+    echo -e "${RED} ERROR: Failed to download or install openshift-install.${NC}"
+    echo -e "${RED} Possible causes:${NC}"
+    echo -e "${RED}  - Invalid OpenShift release version (${OCP_RELEASE})${NC}"
+    echo -e "${RED}  - Network / proxy / firewall issue${NC}"
+    echo -e "${RED}  - Insufficient permissions to write to /usr/local/bin${NC}"
+    echo -e "${RED} Please check the issue and install OpenShift Installer manually after script complete.${NC}"
+  fi
+  sudo chmod +x /usr/local/bin/openshift-install
+  echo -e "${GREEN} openshift-install installation activity completed. Proceeding...${NC}"
+fi
 
 #===================================================================================
 
@@ -676,7 +702,7 @@ else
     echo -e "${RED} Please check the issue and install GOVC manually [If Required] after script complete.${NC}"
   fi
 
-  echo -e "${GREEN} GOVC installed successfully.${NC}"
+  echo -e "${GREEN} GOVC installation activity completed. Proceeding...${NC}"
 fi
 
 #Print Separator
@@ -709,7 +735,7 @@ else
   fi
 
   sudo chmod +x /usr/local/bin/oc /usr/local/bin/kubectl
-  echo -e "${GREEN} oc CLI installed successfully.${NC}"
+  echo -e "${GREEN} oc CLI installation activity completed. Proceeding...${NC}"
 fi
 
 #Print Separator
@@ -738,7 +764,7 @@ else
   echo -e "${CYAN} Setting execute permission...${NC}"
   sudo chmod +x /usr/local/bin/helm
 
-  echo -e "${GREEN} Helm installed successfully.${NC}"
+  echo -e "${GREEN} Helm installation activity completed. Proceeding...${NC}"
 fi
 
 echo ""
@@ -896,7 +922,7 @@ echo -e "${CYAN} Use the following command to create the OpenShift cluster:${NC}
 echo ""
 
 echo -e "${GREEN} ----------------------------------------------------- ${NC}"
-echo -e "${GREEN} openshift-install create cluster --dir ${INSTALL_DIR} ${NC}"
+echo -e "${GREEN} openshift-install create cluster --dir "${INSTALL_DIR}" ${NC}"
 echo -e "${GREEN} ----------------------------------------------------- ${NC}"
 echo ""
 
