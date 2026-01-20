@@ -126,6 +126,56 @@ confirm_yn() {
   done
 }
 
+#------------------------------------------------------------------------------
+
+# Function to readh json file from user input (pull secret)
+read_json() {
+  local prompt="$1"
+  local value
+
+  echo -e "${YELLOW}${prompt}${NC}"
+  echo -e "${GREY}       Paste the JSON below. Press Ctrl+D when finished.${NC}"
+  echo ""
+
+  value="$(cat)"
+
+  # Reject empty input
+  if [[ -z "${value//[[:space:]]/}" ]]; then
+    echo -e "${RED}       ERROR: Input cannot be empty.${NC}" >&2
+    return 1
+  fi
+
+  printf '%s' "$value"
+}
+
+#------------------------------------------------------------------------------
+
+# Function to read ssh key from user input
+read_ssh_key() {
+  local prompt="$1"
+  local value
+
+  while true; do
+    read -r -p "$prompt" value
+
+    # Reject empty / whitespace-only
+    if [[ -z "${value//[[:space:]]/}" ]]; then
+      echo -e "${RED}       ERROR: SSH key cannot be empty.${NC}" >&2
+      continue
+    fi
+
+    # Basic sanity check (good enough for public keys)
+    if [[ ! "$value" =~ ^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)[[:space:]]+[A-Za-z0-9+/=]+([[:space:]].*)?$ ]]; then
+      echo -e "${RED}       ERROR: This does not look like a valid SSH public key.${NC}" >&2
+      echo -e "${RED}       Example: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... user@host${NC}" >&2
+      continue
+    fi
+
+    printf '%s' "$value"
+    return 0
+  done
+}
+
 #===================================================================================
 
 #-------------------------------------------------------------
@@ -189,8 +239,8 @@ while true; do
   API_VIP=$(read_non_empty "       Enter OpenShift API VIP IP (e.g. 192.168.x.x): ")
   APPS_VIP=$(read_non_empty "       Enter OpenShift APPs VIP IP (e.g. 192.168.x.x): ")
   OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
-  PULL_SECRET=$(read_non_empty "       Enter Red Hat Pull Secret: ")
-  SSH_KEY=$(read_non_empty "       Enter SSH Key: ")
+  PULL_SECRET="$(read_json "Enter Red Hat Pull Secret (JSON)")"
+  SSH_KEY=$(read_json "       Enter SSH Key: ")
   echo ""
 
   # Extract Object Path from user input
@@ -921,9 +971,9 @@ echo -e "${CYAN} This lab is now ready for cluster deployment.${NC}"
 echo -e "${CYAN} Use the following command to create the OpenShift cluster:${NC}"
 echo ""
 
-echo -e "${GREEN} ----------------------------------------------------- ${NC}"
-echo -e "${GREEN} openshift-install create cluster --dir "${INSTALL_DIR}" ${NC}"
-echo -e "${GREEN} ----------------------------------------------------- ${NC}"
+echo -e "${GREEN} ------------------------------------------------------------------------ ${NC}"
+echo -e "${GREEN} openshift-install create cluster --dir "${INSTALL_DIR}" --log-level=info ${NC}"
+echo -e "${GREEN} ------------------------------------------------------------------------ ${NC}"
 echo ""
 
 #Print Separator
