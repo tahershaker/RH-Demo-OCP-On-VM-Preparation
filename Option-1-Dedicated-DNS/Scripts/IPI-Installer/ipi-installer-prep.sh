@@ -133,18 +133,20 @@ read_json() {
   local prompt="$1"
   local value
 
-  echo -e "${YELLOW}${prompt}${NC}"
-  echo -e "${GREY}       Paste the JSON below. Press Ctrl+D when finished.${NC}"
-  echo ""
+  # Print prompts to STDERR so they appear even inside $(...)
+  echo -e "${YELLOW}${prompt}${NC}" >&2
+  echo -e "${GREY}       Paste the full JSON, then press Ctrl+D when done.${NC}" >&2
 
+  # Read from STDIN until EOF (Ctrl+D)
   value="$(cat)"
 
-  # Reject empty input
+  # Reject empty / whitespace-only
   if [[ -z "${value//[[:space:]]/}" ]]; then
     echo -e "${RED}       ERROR: Input cannot be empty.${NC}" >&2
     return 1
   fi
 
+  # Return raw content exactly
   printf '%s' "$value"
 }
 
@@ -239,8 +241,8 @@ while true; do
   API_VIP=$(read_non_empty "       Enter OpenShift API VIP IP (e.g. 192.168.x.x): ")
   APPS_VIP=$(read_non_empty "       Enter OpenShift APPs VIP IP (e.g. 192.168.x.x): ")
   OCP_RELEASE=$(read_non_empty "       Enter OpenShift release (e.g. 4.20.4): ")
-  PULL_SECRET="$(read_json "Enter Red Hat Pull Secret (JSON)")"
-  SSH_KEY=$(read_json "       Enter SSH Key: ")
+  PULL_SECRET="$(read_json "       Enter Red Hat Pull Secret (JSON)")"
+  SSH_KEY=$(read_ssh_key "       Enter SSH Key: ")
   echo ""
 
   # Extract Object Path from user input
