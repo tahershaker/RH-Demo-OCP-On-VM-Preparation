@@ -8,7 +8,7 @@ If you are already familiar with this repository, you can proceed directly to th
   - Also, you can go directly to the required options:
     - [Option 1 - Dedicated DNS Records option](#option-1---dedicated-dns-records-option)
       - [[1] Assisted Installer Option - With Dedicated DNS Records](#1-assisted-installer-option---with-dedicated-dns-records)
-      - [[2] IPI Installer Option - With Dedicated DNS Records](#1-ipi-installer-option---with-wildcard-dns-records)
+      - [[2] IPI Installer Option - With Dedicated DNS Records](#2-ipi-installer-option---with-dedicated-dns-records)
     - [Option 2 - Wildcard DNS Records option](#option-2---wildcard-dns-records-option)
       - [[1] Assisted Installer Option - With Wildcard DNS Records](#1-assisted-installer-option---with-wildcard-dns-records)
       - [[2] IPI Installer Option - With Wildcard DNS Records](#2-ipi-installer-option---with-dedicated-dns-records)
@@ -211,7 +211,7 @@ TBC
 
 ---
 
-#### [1] IPI Installer Option - With Wildcard DNS Records
+#### [2] IPI Installer Option - With Wildcard DNS Records
 
 > This option prepares the lab environment for deploying Red Hat OpenShift using the IPI Installer with a wildcard DNS records pointing to the Bastion host (which is acting as the infrastructure DNS and Load balancer)
 
