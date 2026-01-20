@@ -63,7 +63,7 @@ This option includes two deployment sub-options based on the OpenShift installat
 
 #### Assisted Installer Option - With Dedicated DNS Records
 
-> This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with two dedicated DNS records—one for the OpenShift API and one for applications.
+> This option prepares the lab environment for deploying Red Hat OpenShift using the Assisted Installer with two dedicated DNS records — one for the OpenShift API and one for applications.
 
 **Step 1:** Prepare the required input information
 
@@ -130,23 +130,46 @@ If you need to start over and remove the deployed virtual machines, run the clea
 
 ---
 
+#### IPI Installer Option - With Dedicated DNS Records
 
+> This option prepares the lab environment for deploying Red Hat OpenShift using the IPI Installer with two dedicated DNS records — one for the OpenShift API and one for applications.
 
-IPI
+**Step 1:** Prepare the required input information
 
-- Download and Install OpenShift Installer
-https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-linux.tar.gz
-curl -LO https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-linux.tar.gz \
-&& tar -xvf openshift-install-linux.tar.gz \
-&& chmod +x openshift-install \
-&& sudo mv openshift-install /usr/local/bin/
+The script prompts the user for several inputs required to perform the necessary actions. These values are provided interactively, one by one. Prepare the following information before running the script:
 
-curl -L https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/stable/openshift-install-linux.tar.gz | sudo tar -C /usr/local/bin -xvzf - openshift-install
+```bash
+- vCenter URL:
+- vCenter username:
+- vCenter password:
+- vCenter Datacenter Name:
+- vCenter Cluster Name:
+- vCenter VM folder Name: 
+- vCenter Datastore name:
+- vCenter Network name:
+- Required OpenShift release: 
+- Lab Main Domain:
+- Lab ID:
+- Red Hat Pull Secret:
+- User SSH Key:
+```
 
-- Edit the yaml file and copy it to the directoy
+**Step 2:** Clone the Git repository - Please Note: The repository must be cloned into the user’s home directory. The scripts rely on this specific path and will not work if the repository is located elsewhere.
 
-- create cluster 
-openshift-install create cluster --dir ~/ocp-install/ --log-level=info
+```bash
+git clone https://github.com/tahershaker/RH-Demo-OCP-On-VM-Preparation.git
+```
 
-- delete cluster
-openshift-install destroy cluster --dir ~/ocp-install/ --log-level=info
+**Step 3:** Make the IPI Installer scripts executable
+
+```bash
+chmod +x RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/*
+```
+
+**Step 4:** Run the IPI Installer preparation script
+
+```bash
+./RH-Demo-OCP-On-VM-Preparation/Option-1-Dedicated-DNS/Scripts/IPI-Installer/ipi-installer-prep.sh
+```
+
+---
